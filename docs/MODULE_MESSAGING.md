@@ -91,9 +91,18 @@ idea) — the module owns the thread; a page can embed it.
 
 | Reuse verdict | Pieces |
 |---|---|
-| **Shell, after generalize** | Dojo Chat/DM thread UI → the thread surface; Messages list → the inbox; the notification engine (already exists) → `notifyOnMessage` |
+| **Shell, COPY VERBATIM** | the Dojo's **`Chat.html` / DM thread implementation** — its CSS *and* its scroll/layout JS. See the note below. |
+| **Shell, after generalize** | Messages list → the inbox; the notification engine (already exists) → `notifyOnMessage` |
 | **New (small)** | `cleanMessagingConfig` (modes/channels/moderation bounds); the send→activity-log + notification signals |
 | **Does NOT come along** | anything hardcoding Dojo DM specifics — all become config (modes/channels) |
+
+> **⚠ Copy the Dojo chat, don't reinvent it (Will, 2026-08-10).** The Dojo's chat took real effort to
+> get right — **message alignment, scroll jumpiness, sticking to the bottom, keyboard/compose resize,
+> and the app-shell-scroller quirk** were all solved there the hard way. When the thread/inbox
+> surfaces are built, **lift `Chat.html`'s markup, CSS, and scroll JS as-is** and only parameterize
+> the data source — do not rewrite the layout/scroll logic from scratch. The relevant gotcha: an
+> internal element scrolls, **not** the window (reset *its* `scrollTop`, and anchor-to-bottom on new
+> messages) — the same "app-shell scroller is not the window" trap the Dojo already learned.
 
 ## 7. Ties to the rest
 
