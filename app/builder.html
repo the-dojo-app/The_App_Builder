@@ -1,8 +1,9 @@
 <!doctype html>
 <!-- The App Builder — desktop builder chrome. Runs the intake loop CLIENT-SIDE by importing the pure
      engine modules directly (zero build step, true to clone-first). The two deliberate seams — the LLM
-     `propose` call and the Firebase apply — are stubbed here; suggestion chips drive the loop without them.
-     Desktop/iPad only: a small-screen gate covers phones (docs/EXPERIENCE.md §1b). -->
+     `propose` call and the Firebase apply — are stubbed; suggestion chips + look presets drive the loop.
+     Desktop/iPad only: a small-screen gate covers phones (docs/EXPERIENCE.md §1b).
+     Everything is undoable: a time machine (timeline + Undo/Redo) + reassurance everywhere (Will, 08-10). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -28,15 +29,16 @@
 
   /* ── shell ──────────────────────────────────────────────────────────────── */
   #shell{display:flex;flex-direction:column;height:100%}
-  header{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line)}
+  header{display:flex;align-items:center;gap:10px;padding:14px 22px;border-bottom:1px solid var(--line)}
   header .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(150deg,var(--accent),#1c7d63);
     display:flex;align-items:center;justify-content:center;font-size:15px}
   header .title{font-weight:700;letter-spacing:-.01em}
   header .sub{color:var(--muted);font-size:12px;margin-left:2px}
   header .spacer{flex:1}
-  header .restart{color:var(--muted);font-size:13px;cursor:pointer;border:1px solid var(--line);
-    padding:7px 13px;border-radius:9px}
-  header .restart:hover{color:var(--text)}
+  header .hbtn{color:var(--muted);font-size:13px;cursor:pointer;border:1px solid var(--line);
+    padding:7px 12px;border-radius:9px;transition:.15s;user-select:none}
+  header .hbtn:hover{color:var(--text);border-color:var(--accent)}
+  header .hbtn.disabled{opacity:.32;pointer-events:none}
 
   .cols{flex:1;display:flex;min-height:0}
   .chat{flex:1;min-width:420px;display:flex;flex-direction:column;min-height:0}
@@ -46,7 +48,19 @@
   .side .label{color:#6b7a76;font-size:11px;text-transform:uppercase;letter-spacing:.09em;margin-bottom:14px}
   .side .pending{color:var(--accent-text)}
   iframe.frame{width:390px;height:720px;border:0;border-radius:30px;background:#0F171D;
-    box-shadow:0 24px 60px rgba(0,0,0,.55);flex:none}
+    box-shadow:0 24px 60px rgba(0,0,0,.55);flex:none;transition:opacity .18s ease}
+  iframe.frame.swap{opacity:.3}
+
+  /* time machine */
+  .tlabel{width:390px;color:#6b7a76;font-size:11px;text-transform:uppercase;letter-spacing:.09em;margin-top:18px}
+  .timeline{width:390px;display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
+  .ver{flex:none;max-width:130px;border:1px solid var(--line);border-radius:9px;padding:6px 10px;cursor:pointer;
+    font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:.15s}
+  .ver:hover{color:var(--text);border-color:var(--accent)}
+  .ver.on{border-color:var(--accent);color:var(--accent-text);background:rgba(47,182,140,.1)}
+  .ver .n{opacity:.55;margin-right:5px}
+  .reassure{width:390px;color:#6b7a76;font-size:12px;margin-top:14px;display:flex;gap:7px;line-height:1.5}
+  .reassure b{color:var(--accent-text);font-weight:600}
 
   /* bubbles */
   .bubble{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 16px 4px;
@@ -59,6 +73,7 @@
   ul.changes{margin:8px 0 4px;padding-left:20px;line-height:1.8;font-size:14px}
   .milestone{color:var(--accent-text);font-weight:600;font-size:14px;margin:6px 0 0}
   .prompt{margin-top:10px;font-weight:600;font-size:14px}
+  .undoline{color:var(--accent-text);font-size:12px;margin-top:9px;opacity:.85}
   .err{color:#ff9a8a}
 
   .chips{display:flex;flex-direction:column;gap:9px;margin-top:8px}
@@ -66,6 +81,15 @@
   .chip:hover{border-color:var(--accent);background:rgba(47,182,140,.08)}
   .chip b{display:block;font-size:14px}
   .chip span{color:var(--muted);font-size:12px}
+
+  /* design-direction "looks" */
+  .looks{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+  .look{display:flex;align-items:center;gap:13px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;transition:.15s}
+  .look:hover{border-color:var(--accent);background:rgba(47,182,140,.07)}
+  .look .sw{display:flex;gap:5px;flex:none}
+  .look .dot{width:17px;height:17px;border-radius:5px;border:1px solid rgba(255,255,255,.16)}
+  .look .lt b{display:block;font-size:14px}
+  .look .lt span{color:var(--muted);font-size:12px}
 
   .actions{display:flex;gap:10px;margin-top:12px}
   .btn{font-weight:700;font-size:14px;padding:10px 18px;border-radius:11px;cursor:pointer;border:1px solid var(--line)}
@@ -109,7 +133,9 @@
     <div class="mark">⛩️</div>
     <div><span class="title">The App Builder</span> <span class="sub">preview build</span></div>
     <div class="spacer"></div>
-    <div class="restart" id="restart">Start over</div>
+    <div class="hbtn disabled" id="undo">↺ Undo</div>
+    <div class="hbtn disabled" id="redo">↻ Redo</div>
+    <div class="hbtn" id="restart">Start over</div>
   </header>
 
   <div class="cols">
@@ -123,6 +149,9 @@
     <div class="side">
       <div class="label" id="previewLabel">Live preview — what your members see</div>
       <iframe class="frame" id="preview" title="app preview"></iframe>
+      <div class="tlabel" id="tlabel" style="display:none">Build history — click any point to rewind</div>
+      <div class="timeline" id="timeline"></div>
+      <div class="reassure" id="reassure" style="display:none">↺&nbsp;<span>Nothing here is permanent — <b>rewind to any point, anytime</b>. Change your mind as often as you like.</span></div>
     </div>
   </div>
 
@@ -134,32 +163,49 @@ import { listStarters, getStarter } from '../src/intake/starters.mjs';
 import { reviewProposal } from '../src/intake/intake.mjs';
 import { buildPreview, renderPreviewHTML } from '../src/intake/preview.mjs';
 import { narrateProposal, greeting, checkpoint, suggestNext } from '../src/intake/narrator.mjs';
+import { themeProposals } from '../src/intake/themes.mjs';
 
 const $ = s => document.querySelector(s);
-const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewLabel');
-let spec = null;
-let buildsSinceCheckpoint = 0;
-
-// ── helpers ─────────────────────────────────────────────────────────────────
-const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
-function bubble(html, cls = '') {
-  const el = document.createElement('div');
-  el.className = 'bubble ' + cls;
-  el.innerHTML = html;
-  log.appendChild(el);
-  log.scrollTop = log.scrollHeight;
-  return el;
-}
+const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewLabel'),
+      timeline = $('#timeline'), tlabel = $('#tlabel'), reassure = $('#reassure'),
+      undoBtn = $('#undo'), redoBtn = $('#redo');
 const co = 'Your co-builder';
-function renderPreview(model) { previewFrame.srcdoc = renderPreviewHTML(model); }
+let spec = null, history = [], cursor = -1, pending = false, buildsSinceCheckpoint = 0, lookChosen = false;
+
+const clone = x => structuredClone(x);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+function bubble(html, cls = '') { const el = document.createElement('div'); el.className = 'bubble ' + cls; el.innerHTML = html; log.appendChild(el); log.scrollTop = log.scrollHeight; return el; }
+function renderPreview(model) { previewFrame.classList.add('swap'); previewFrame.onload = () => previewFrame.classList.remove('swap'); previewFrame.srcdoc = renderPreviewHTML(model); }
+function setLabel(t, unsaved) { previewLabel.innerHTML = unsaved ? `${esc(t)} <span class="pending">— not saved yet</span>` : esc(t); }
+const liveLabel = () => setLabel('Live preview — what your members see');
+
+// ── time machine ─────────────────────────────────────────────────────────────
+function pushHistory(label) { history = history.slice(0, cursor + 1); history.push({ spec: clone(spec), label }); cursor = history.length - 1; renderTimeline(); updateUndoRedo(); }
+function updateUndoRedo() { undoBtn.classList.toggle('disabled', cursor <= 0); redoBtn.classList.toggle('disabled', cursor >= history.length - 1); }
+function renderTimeline() {
+  reassure.style.display = spec ? 'flex' : 'none';
+  if (history.length <= 1) { timeline.innerHTML = ''; tlabel.style.display = 'none'; return; }
+  tlabel.style.display = 'block';
+  timeline.innerHTML = history.map((h, i) => `<div class="ver ${i === cursor ? 'on' : ''}" data-i="${i}" title="${esc(h.label)}"><span class="n">${i + 1}</span>${esc(h.label)}</div>`).join('');
+  timeline.querySelectorAll('.ver').forEach(v => v.addEventListener('click', () => goTo(+v.dataset.i)));
+  timeline.scrollLeft = timeline.scrollWidth;
+}
+function goTo(i) {
+  if (i === cursor || i < 0 || i >= history.length) return;
+  const back = i < cursor; cursor = i; spec = clone(history[i].spec);
+  renderPreview(buildPreview(spec)); renderTimeline(); updateUndoRedo(); liveLabel();
+  bubble(`<div class="co">${co}</div><div class="sum">${back ? 'Rewound' : 'Jumped'} to <b>${esc(history[i].label)}</b>. Nothing's lost — jump forward anytime, or make a change here to branch a new direction.</div>`);
+  offerSuggestions();
+}
+undoBtn.addEventListener('click', () => goTo(cursor - 1));
+redoBtn.addEventListener('click', () => goTo(cursor + 1));
 
 // ── gallery ──────────────────────────────────────────────────────────────────
 function showGallery() {
   const cards = listStarters();
-  const g = $('#gallery');
-  g.style.display = 'block';
+  const g = $('#gallery'); g.style.display = 'block';
   g.innerHTML = `<h1>Pick a starting point</h1>
-    <p class="lead">Each is a real, working app you can make your own. Nothing here can be built broken — they all pass the same safety checks.</p>
+    <p class="lead">Each is a real, working app you can make your own. Nothing here can be built broken — and once you're in, every change is undoable.</p>
     <div class="grid">${cards.map(c => `
       <div class="card">
         <div class="name">${esc(c.name)}</div>
@@ -172,69 +218,86 @@ function showGallery() {
   cards.forEach(c => { g.querySelector(`iframe[data-id="${c.id}"]`).srcdoc = renderPreviewHTML(c.preview); });
   g.querySelectorAll('[data-start]').forEach(b => b.addEventListener('click', () => pickStarter(b.dataset.start)));
 }
-
 function pickStarter(id) {
-  spec = getStarter(id);
-  $('#gallery').style.display = 'none';
-  log.innerHTML = '';
-  buildsSinceCheckpoint = 0;
+  spec = getStarter(id); $('#gallery').style.display = 'none'; log.innerHTML = '';
+  history = []; cursor = -1; pending = false; buildsSinceCheckpoint = 0; lookChosen = false;
   const g = greeting(spec);
-  bubble(`<div class="co">${co}</div><h3>${esc(g.headline)}</h3><div class="sum">${esc(g.summary)}</div><div class="prompt">${esc(g.prompt)}</div>`);
+  bubble(`<div class="co">${co}</div><h3>${esc(g.headline)}</h3><div class="sum">${esc(g.summary)}</div>`);
+  pushHistory(((spec.app && spec.app.name) || 'Start') + ' · start');
   renderPreview(buildPreview(spec));
-  offerSuggestions();
+  askLook();
+}
+
+// ── design-direction step (asked FIRST) ───────────────────────────────────────
+function askLook() {
+  const looks = themeProposals();
+  const cards = looks.map((l, i) => `<div class="look" data-i="${i}">
+      <div class="sw"><span class="dot" style="background:${l.swatch.bg}"></span><span class="dot" style="background:${l.swatch.accent}"></span></div>
+      <div class="lt"><b>${esc(l.name)}</b><span>${esc(l.blurb)}</span></div></div>`).join('');
+  const keep = `<div class="look" data-keep><div class="sw"><span class="dot" style="border-style:dashed;background:transparent"></span></div><div class="lt"><b>Keep the current look</b><span>Start from how it looks now — change it whenever.</span></div></div>`;
+  const el = bubble(`<div class="co">First, the look</div><h3>What feel do you want?</h3>
+    <div class="sum">Hover any option to see it live on the right. Pick one to set the direction — and don't overthink it, you can change the whole look anytime.</div>
+    <div class="looks">${cards}${keep}</div>`);
+  el.querySelectorAll('.look').forEach(card => {
+    if (card.dataset.keep !== undefined) {
+      card.addEventListener('click', () => { lookChosen = true; bubble(`<div class="co">${co}</div><div class="sum">Keeping the current look — we can revisit it whenever. Now, the fun part:</div>`); offerSuggestions(); });
+      return;
+    }
+    const l = looks[+card.dataset.i];
+    attachHover(card, l.ops);
+    card.addEventListener('click', () => proposeReview(l.ops, `the ${l.name} look`, { isLook: true }));
+  });
 }
 
 // ── suggestions ───────────────────────────────────────────────────────────────
 function offerSuggestions() {
   const sugg = suggestNext(spec);
-  if (!sugg.length) {
-    bubble(`<div class="co">${co}</div><div class="sum">Looking good. Tell me anything else you'd like to change.</div>`);
-    return;
-  }
+  if (!sugg.length) { bubble(`<div class="co">${co}</div><div class="sum">Looking good. Tell me anything else you'd like to change — and remember, everything's undoable.</div>`); return; }
   const chips = sugg.map((s, i) => `<div class="chip" data-i="${i}"><b>${esc(s.label)}</b><span>${esc(s.why)}</span></div>`).join('');
   const el = bubble(`<div class="co">Suggestions</div><h3>A few ways to make it better:</h3><div class="chips">${chips}</div>`);
-  el.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => proposeReview(sugg[+ch.dataset.i].ops)));
+  el.querySelectorAll('.chip').forEach(ch => { const s = sugg[+ch.dataset.i]; attachHover(ch, s.ops); ch.addEventListener('click', () => proposeReview(s.ops, s.label)); });
 }
 
-// ── the propose → review → build loop ─────────────────────────────────────────
-function proposeReview(ops) {
-  const review = reviewProposal(spec, ops);
-  const n = narrateProposal(review);
+// hover any option → ghost-preview it live (before a single click)
+function attachHover(el, ops) {
+  el.addEventListener('mouseenter', () => { if (pending) return; const r = reviewProposal(spec, ops); if (r.ok) { renderPreview(r.preview); setLabel('Preview', true); } });
+  el.addEventListener('mouseleave', () => { if (pending) return; renderPreview(buildPreview(spec)); liveLabel(); });
+}
 
+// ── propose → review → build ──────────────────────────────────────────────────
+function proposeReview(ops, title, opts = {}) {
+  pending = true;
+  const review = reviewProposal(spec, ops), n = narrateProposal(review);
   if (!review.ok) {
-    bubble(`<div class="co">${co}</div><h3>${esc(n.headline)}</h3>
-      <ul class="changes err">${n.bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
-      <div class="prompt">${esc(n.prompt)}</div>`);
+    pending = false; renderPreview(buildPreview(spec)); liveLabel();
+    bubble(`<div class="co">${co}</div><h3>${esc(n.headline)}</h3><ul class="changes err">${n.bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul><div class="prompt">${esc(n.prompt)}</div>`);
     return;
   }
-
-  // ghost preview — show the candidate before committing
-  renderPreview(review.preview);
-  previewLabel.innerHTML = 'Preview of this change <span class="pending">— not saved yet</span>';
-
+  renderPreview(review.preview); setLabel('Preview of this change', true);
   const el = bubble(`<div class="co">${co}</div><h3>${esc(n.headline)}</h3>
     <ul class="changes">${n.bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
     ${(n.milestones || []).map(m => `<div class="milestone">${esc(m)}</div>`).join('')}
     <div class="prompt">${esc(n.prompt)}</div>
+    <div class="undoline">↺ Nothing's set in stone — you can undo or rewind this whenever you like.</div>
     <div class="actions"><div class="btn primary" data-build>Build it</div><div class="btn ghost" data-cancel>Not now</div></div>`);
-
-  el.querySelector('[data-build]').addEventListener('click', () => { commit(ops, el); });
+  el.querySelector('[data-build]').addEventListener('click', () => commit(ops, el, title, opts));
   el.querySelector('[data-cancel]').addEventListener('click', () => {
-    el.querySelector('.actions').remove();
-    renderPreview(buildPreview(spec));                       // revert the ghost
-    previewLabel.textContent = 'Live preview — what your members see';
+    pending = false;
+    el.querySelector('.actions').remove(); const u = el.querySelector('.undoline'); if (u) u.remove();
+    renderPreview(buildPreview(spec)); liveLabel();
   });
 }
-
-function commit(ops, el) {
-  const review = reviewProposal(spec, ops);
-  if (!review.ok) return;                                    // gate is final
-  spec = review.candidate;                                   // advance the working spec
-  el.querySelector('.actions').remove();
-  renderPreview(buildPreview(spec));
-  previewLabel.textContent = 'Live preview — what your members see';
-  bubble(`<div class="co">${co}</div><div class="sum">Done — it's live in your preview.</div>`);
-
+function commit(ops, el, title, opts = {}) {
+  const review = reviewProposal(spec, ops); if (!review.ok) { pending = false; return; }
+  spec = review.candidate; pending = false;
+  el.querySelector('.actions').remove(); const u = el.querySelector('.undoline'); if (u) u.remove();
+  pushHistory(title || 'Change'); renderPreview(buildPreview(spec)); liveLabel();
+  bubble(`<div class="co">${co}</div><div class="sum">Done — it's live in your preview. (Rewind anytime from the timeline.)</div>`);
+  if (opts.isLook && !lookChosen) {
+    lookChosen = true;
+    bubble(`<div class="co">${co}</div><div class="sum">That's your look locked in — and you can change it whenever the mood strikes. Now, the fun part:</div>`);
+    offerSuggestions(); return;
+  }
   if (++buildsSinceCheckpoint >= 3) {
     buildsSinceCheckpoint = 0;
     const c = checkpoint(spec);
@@ -251,17 +314,13 @@ const INTENTS = [
   { re: /(staff|team|moderator|role|admin)/i, id: 'add-staff' }
 ];
 function onSend() {
-  const input = $('#ask'); const text = input.value.trim(); if (!text || !spec) return;
-  input.value = '';
-  bubble(esc(text), 'you');
-  const sugg = suggestNext(spec);
-  const hit = INTENTS.find(i => i.re.test(text));
-  const match = hit && sugg.find(s => s.id === hit.id);
-  if (match) { proposeReview(match.ops); return; }
+  const input = $('#ask'), text = input.value.trim(); if (!text || !spec) return;
+  input.value = ''; bubble(esc(text), 'you');
+  const sugg = suggestNext(spec), hit = INTENTS.find(i => i.re.test(text)), match = hit && sugg.find(s => s.id === hit.id);
+  if (match) { proposeReview(match.ops, match.label); return; }
   bubble(`<div class="co">${co}</div><div class="sum">Connecting your own AI key lets me build from a description like that. It's not wired up in this preview yet — for now, pick one of the suggestions and I'll build it live.</div>`);
   offerSuggestions();
 }
-
 $('#send').addEventListener('click', onSend);
 $('#ask').addEventListener('keydown', e => { if (e.key === 'Enter') onSend(); });
 $('#restart').addEventListener('click', showGallery);

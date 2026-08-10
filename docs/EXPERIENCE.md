@@ -150,7 +150,19 @@ the Firebase apply). Verified working end to end in-browser:
 **Run it:** serve the repo root over http (ES-module imports need http, not file://) and open
 `/app/builder.html` — e.g. `python3 -m http.server 8777` then `http://localhost:8777/app/builder.html`.
 (`.claude/launch.json` has a `builder` config for editors that read this repo's own launch file.)
-**Remaining chrome:** hover-to-preview on chips, the time-machine scrubber, and richer edit surfaces.
+
+**Polish shipped 2026-08-10 (all verified in-browser):**
+- **Design-direction FIRST** — after a starter, the co-builder asks "What feel do you want?" with the
+  5 LOOK presets (`src/intake/themes.mjs`), each hover-previewed; pick → sign-off ("that's your look
+  locked in") → then feature suggestions. Answers Will's "ask the general design questions first."
+- **Hover-to-preview** — hovering any look/suggestion ghosts it live in the frame; move away, it reverts.
+- **Time machine** — every build is a version on a timeline strip (click to rewind/jump), plus header
+  Undo/Redo, branch-on-edit. **Undoability is reassured everywhere** (per-proposal line + a persistent
+  "nothing here is permanent — rewind anytime" note) because owners are fickle and must feel safe.
+- **Smooth preview transitions** — a fade on every frame swap so changes feel like they land.
+
+**Remaining chrome:** voice-driven dialogue (Web Speech API — see the vision memory), richer edit
+surfaces, and animating the diff *inside* the frame (highlight what changed).
 
 ## 6. Open questions
 
