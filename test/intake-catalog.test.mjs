@@ -19,7 +19,7 @@ test('catalog reports the real field-type set and mechanic library (no drift)', 
 
 test('catalog lists the three library modules and the diff grammar', () => {
   const cat = buildCatalog(dojo);
-  assert.deepEqual(cat.modules.map(m => m.type).sort(), ['commerce', 'content-library', 'progression', 'rbac']);
+  assert.deepEqual(cat.modules.map(m => m.type).sort(), ['activity-log', 'commerce', 'content-library', 'progression', 'rbac']);
   assert.ok(cat.diffFormat.objectTargets && cat.diffFormat.arrayTargets);
   assert.ok(cat.diffFormat.guarantee.includes('cleanSpec'));
 });
@@ -35,7 +35,7 @@ test('buildCatalog tolerates an empty/garbage spec', () => {
   const cat = buildCatalog(undefined);
   assert.deepEqual(cat.concepts, []);
   assert.deepEqual(cat.existingModels, []);
-  assert.equal(cat.modules.length, 4);
+  assert.equal(cat.modules.length, 5);
 });
 
 test('summarizeSpec describes the Dojo in plain domain language', () => {

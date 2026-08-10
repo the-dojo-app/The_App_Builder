@@ -192,6 +192,15 @@ const MODULE_LIBRARY_OFFERS = [
     addOps: [{ target: 'modules', op: 'add', value: { type: 'rbac', config: {} } }]
   },
   {
+    type: 'activity-log', name: 'Activity & feed', bigBlock: false,
+    summary: 'Record what members do — a timeline/feed, staff analytics, and an audit log.',
+    addOps: [
+      { target: 'dataModels', op: 'add', value: { id: 'activity', concept: 'activity', owner: 'member', access: 'owner-read', fields: [{ id: 'actor', type: 'ref', ref: 'members' }, { id: 'type', type: 'select', values: ['session'] }, { id: 'ts', type: 'timestamp' }, { id: 'value', type: 'number' }, { id: 'visibility', type: 'select', values: ['private', 'staff', 'public'] }, { id: 'included', type: 'bool', default: true }] } },
+      { target: 'modules', op: 'add', value: { type: 'activity-log', config: { collection: 'activity', itemConcept: 'activity', eventTypes: [{ id: 'session', label: 'Session' }], visibilityDefault: 'private', retentionDays: 0, surfaces: { feed: { pageId: 'activity', audience: { who: 'members' }, scope: 'actor' }, analytics: { pageId: 'insights', audience: { who: 'staff' } } } } } },
+      { target: 'pages', op: 'add', value: { id: 'activity', title: 'Activity', audience: { who: 'members' }, nav: { section: 'main', label: 'Activity' }, blocks: [] } }
+    ]
+  },
+  {
     type: 'commerce', name: 'Shop', bigBlock: false,
     summary: 'Sell products — cart, checkout, orders. Comes with Stripe for payments (bring your key).',
     addOps: [

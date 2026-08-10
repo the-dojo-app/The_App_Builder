@@ -69,6 +69,18 @@ const MODULE_LIBRARY = [
     config: '(no module config — see the top-level auth block)'
   },
   {
+    type: 'activity-log',
+    summary: 'A stream of what members and the app do — a member feed/timeline, staff analytics, and an audit log. The shared evidence store progression reads and other modules emit to.',
+    needs: 'an activity dataModel; other modules emit events into it (decoupled — no coupling).',
+    config: {
+      collection: 'the dataModel id holding events',
+      eventTypes: 'the vetted types this app records, e.g. session / content.completed / order.paid',
+      visibilityDefault: 'private | staff | public',
+      retentionDays: '0 = keep forever',
+      surfaces: '{ feed, analytics, audit } — which pages, to whom'
+    }
+  },
+  {
     type: 'commerce',
     summary: 'A shop: products, cart, checkout, orders, fulfilment. Reuses the content library for the storefront.',
     needs: 'a products dataModel + a PAYMENTS connector in integrations.payments (e.g. stripe) — required.',

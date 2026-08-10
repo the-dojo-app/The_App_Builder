@@ -196,6 +196,5 @@ implemented as a fast-follow after one-off checkout works (roles first, being si
 5. **First payments connector = Stripe** (best docs + embedded elements → we never touch card data),
    with **Zapier alongside** for breadth. Shopify follows for owners with an existing store.
 
-**Still genuinely open** (surfaced during build, not blocking sign-off): the `completions`-style
-store location shared with an activity-log module (adjacent, unspecced). (`CONNECTORS.md` is now
-written — the connector contract is generalized there.)
+**Resolved since drafting:** `CONNECTORS.md` generalizes the connector contract; `MODULE_ACTIVITY_LOG.md`
+owns the shared event store (order events, completions, sessions all become event types there).
