@@ -1,10 +1,11 @@
 // src/assembler.mjs — the spec→app engine (Phase 0 slice).
 //   cleanSpec(spec)      → { spec: <cleaned>, errors: [] }   — validate/clamp; compose validators
 //   assemble(cleanedSpec)→ Plan (array of typed ops)         — pure, deterministic; writes nothing
-// See docs/ASSEMBLER.md. Increment 1 covers the runtime config-doc path (theme + modules +
-// notifications + branding + history snapshot). Rules generation (deploy path) lands next.
+// See docs/ASSEMBLER.md. Covers the runtime config-doc path (theme + modules + notifications +
+// branding + history snapshot) AND the deploy-path firestore.rules generation (via shell/rules-gen).
 
 import { cleanTheme } from './shell/theme-validator.mjs';
+import { genRules } from './shell/rules-gen.mjs';
 import { cleanContentConfig } from './modules/content-library.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -68,8 +69,8 @@ export function assemble(cleaned) {
   // pages registry
   plan.push({ op: 'registerPages', pages: (s.pages || []).map(p => ({ id: p.id, audience: p.audience, nav: p.nav, layout: p.layout })) });
 
-  // rules generation (deploy path) — placeholder op; the generator lands with docs/MODULE_RBAC.md §5
-  plan.push({ op: 'genRulesFile', from: { dataModels: (s.dataModels || []).map(d => d.id), roles: ((s.auth && s.auth.roles) || []).map(r => r.id) } });
+  // rules generation (deploy path) — the RBAC interface: dataModels + auth → firestore.rules text
+  plan.push({ op: 'genRulesFile', path: 'firestore.rules', rules: genRules(s.dataModels, s.auth) });
 
   // version the whole spec (history/rollback)
   plan.push({ op: 'snapshotSpec', spec: s.spec });
