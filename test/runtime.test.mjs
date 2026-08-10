@@ -35,6 +35,21 @@ test('renderRuntimeHTML is a self-contained app: app name, nav, embedded model, 
   assert.ok(!/<\/script>\s*<\/script>/.test(html));
 });
 
+test('the data channel: demo mode fills surface items; default is empty (scaffold)', () => {
+  const plain = buildRuntimeModel(getStarter('academy'));
+  const demo = buildRuntimeModel(getStarter('academy'), { demo: true });
+  const plainCat = plain.pages.find(p => p.id === 'catalog').surfaces.find(s => s.kind === 'catalogue');
+  const demoCat = demo.pages.find(p => p.id === 'catalog').surfaces.find(s => s.kind === 'catalogue');
+  assert.equal(plainCat.items.length, 0);                 // no data → scaffold
+  assert.ok(demoCat.items.length >= 1);                   // seeded → real items
+  assert.match(demoCat.items[0].title, /Lesson/);         // titled by the item concept
+});
+
+test('renderRuntimeHTML shows real item titles when the data channel is filled', () => {
+  const html = renderRuntimeHTML(buildRuntimeModel(getStarter('academy'), { demo: true }));
+  assert.match(html, /Lesson 1/);
+});
+
 test('renderRuntimeHTML tolerates an empty model', () => {
   const html = renderRuntimeHTML(buildRuntimeModel({}));
   assert.match(html, /<!doctype html>/i);

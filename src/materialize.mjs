@@ -28,7 +28,7 @@ export function materialize(spec) {
 
   // the RUNTIME SHELL — a self-contained, themed, navigable app. `firebase deploy --only hosting`
   // serves this index.html and you have a visitable app. (Live per-member data layers on later.)
-  put('index.html', renderRuntimeHTML(buildRuntimeModel(cleaned)));
+  put('index.html', renderRuntimeHTML(buildRuntimeModel(cleaned, { demo: true })));
 
   // a small human-facing manifest so a bundle is self-describing
   put('README.txt', [

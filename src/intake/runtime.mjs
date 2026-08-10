@@ -30,7 +30,22 @@ function surfaceLabel(mType, surfaceName, cfg, concepts) {
   return surfaceName;
 }
 
-export function buildRuntimeModel(spec) {
+// A small demo dataset per surface kind so a materialized app looks ALIVE (titled cards/rows, not
+// placeholders). Live Firestore data flows through the exact same `items` shape once auth is wired.
+function demoItems(kind, meta) {
+  const n = (k, fn) => Array.from({ length: k }, (_, i) => fn(i + 1));
+  switch (kind) {
+    case 'catalogue': case 'reader': return n(6, i => ({ title: `${meta.item} ${i}`, sub: meta.taxonomy[0] || '' }));
+    case 'storefront': return n(6, i => ({ title: `Product ${i}`, sub: `$${(i * 10) - 1}` }));
+    case 'orders': return n(3, i => ({ title: `Order #${1000 + i}`, sub: 'paid' }));
+    case 'bookings': return n(3, i => ({ title: `Session ${i}`, sub: 'confirmed' }));
+    case 'inbox': return n(4, i => ({ title: `Member ${i}`, sub: 'Tap to open the conversation' }));
+    case 'feed': case 'analytics': case 'audit': return n(4, i => ({ title: `Activity ${i}`, sub: 'just now' }));
+    default: return [];
+  }
+}
+
+export function buildRuntimeModel(spec, opts = {}) {
   const s = isObj(spec) ? spec : {};
   const c = isObj(s.concepts) ? s.concepts : {};
   const app = isObj(s.app) ? s.app : {};
@@ -44,14 +59,18 @@ export function buildRuntimeModel(spec) {
     Object.keys(surf).forEach(name => {
       const sd = surf[name];
       if (!isObj(sd) || !isStr(sd.pageId) || !kinds[name]) return;
+      const meta = {
+        taxonomy: (m.type === 'content-library' && Array.isArray(cfg.taxonomy)) ? cfg.taxonomy.map(t => t.label || t.id) : [],
+        formats: (m.type === 'content-library' && Array.isArray(cfg.formats)) ? cfg.formats : [],
+        item: (isObj(c[cfg.itemConcept]) && c[cfg.itemConcept].label) || 'Item'
+      };
       (surfacesByPage[sd.pageId] ||= []).push({
         module: m.type, surface: name, kind: kinds[name],
         label: surfaceLabel(m.type, name, cfg, c),
-        // a little config the scaffold can show, so the frame reflects the real app
-        meta: {
-          taxonomy: (m.type === 'content-library' && Array.isArray(cfg.taxonomy)) ? cfg.taxonomy.map(t => t.label || t.id) : [],
-          formats: (m.type === 'content-library' && Array.isArray(cfg.formats)) ? cfg.formats : []
-        }
+        meta,
+        // the DATA CHANNEL: live records for this surface. Empty → the shell shows a scaffold. A demo
+        // seed fills it now; live Firestore reads fill it the same way once auth is wired (§ deploy).
+        items: opts.demo ? demoItems(kinds[name], meta) : []
       });
     });
   });
@@ -149,8 +168,13 @@ if (M.progression && M.progression.units.length) {
 }
 
 function scaffold(s){
-  const ph = n => Array.from({length:n}).map(()=>'<div class="cardph"><span>…</span></div>').join('');
-  const rows = n => Array.from({length:n}).map((_,i)=>'<div class="row"><div class="dot"></div><div class="ln"><b>—</b><span>…</span></div></div>').join('');
+  const items = Array.isArray(s.items) ? s.items : [];
+  const ph = n => items.length
+    ? items.map(it=>'<div class="cardph"><span>'+esc(it.title)+(it.sub?' · '+esc(it.sub):'')+'</span></div>').join('')
+    : Array.from({length:n}).map(()=>'<div class="cardph"><span>…</span></div>').join('');
+  const rows = n => items.length
+    ? items.map(it=>'<div class="row"><div class="dot"></div><div class="ln"><b>'+esc(it.title)+'</b><span>'+esc(it.sub||'')+'</span></div></div>').join('')
+    : Array.from({length:n}).map(()=>'<div class="row"><div class="dot"></div><div class="ln"><b>—</b><span>…</span></div></div>').join('');
   const chips = (s.meta&&s.meta.taxonomy||[]).map(t=>'<span class="chip">'+esc(t)+'</span>').join('');
   let body='';
   switch(s.kind){
