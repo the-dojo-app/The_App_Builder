@@ -34,10 +34,15 @@ let admin;
 try { admin = (await import('firebase-admin')).default; }
 catch { console.error('\nTo seed Firestore, install the Admin SDK first:  npm i firebase-admin'); console.error('(The bundle is written; you can still `firebase deploy` the rules + hosting.)'); process.exit(0); }
 
-if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) { console.error('\nSet GOOGLE_APPLICATION_CREDENTIALS to a service account for YOUR project to seed config.'); process.exit(0); }
-if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.applicationDefault() });
-const projectId = admin.app().options.projectId || (admin.app().options.credential && admin.app().options.credential.projectId) || '';
+// Resolve the target project. Prefer an explicit APPGNOSTIC_FIREBASE_PROJECT; else the standard GCP
+// env vars. Credentials come from Application Default Credentials — either `gcloud auth application-
+// default login` (no key file — preferred, per the no-permanent-keys precedent) OR a service-account
+// JSON via GOOGLE_APPLICATION_CREDENTIALS.
+const projectId = process.env.APPGNOSTIC_FIREBASE_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || '';
+if (!projectId) { console.error('\nSet APPGNOSTIC_FIREBASE_PROJECT to your (separate) Firebase project id to seed config.'); process.exit(0); }
 if (projectId === DOJO_PROJECT) { console.error(`\nRefusing to deploy to the Dojo project (${DOJO_PROJECT}). Appgnostic uses a SEPARATE project.`); process.exit(1); }
+try { if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId }); }
+catch { console.error('\nNo credentials found. Either run `gcloud auth application-default login` (preferred, no key file),'); console.error('or set GOOGLE_APPLICATION_CREDENTIALS to a service-account JSON for your project.'); process.exit(0); }
 
 const r = await applySpecLive(spec, { db: admin.firestore() });
 console.log(`Seeded ${r.writes} config docs into Firestore${projectId ? ' (' + projectId + ')' : ''}. Skipped (deploy-time): ${r.skipped.join(', ') || 'none'}`);
