@@ -119,7 +119,10 @@ Tagged **[v1]** (first release), **[next]**, **[later]**. Mechanism in *italics*
 2. **[done 2026-08-10] Wired into `reviewProposal`** — every proposal now returns `preview` (the
    resulting app frame) + `previewChanges` (typed animated-diff events) alongside the plan, both
    derived from the cleaned/gated specs. The intake can *show* every proposal, not just describe it.
-3. The narrator copy layer (describeProposal → warm voice) + checkpoints.
+3. **[done 2026-08-10]** The narrator layer (`src/intake/narrator.mjs`): `narrateProposal` (warm
+   framing + milestone celebration + the kind honest boundary), `checkpoint`, `greeting`, and
+   `suggestNext` — proactive next moves, each a READY proposal (ops) that previews through the gate.
+   The load-bearing guarantee (tested): every suggestion is itself buildable.
 4. **[gallery done 2026-08-10]** The starter-Spec gallery (`src/intake/starters.mjs`: Academy,
    Coaching Program, Knowledge Base — each validates clean, each leans on a different part of the
    library) + `listStarters()`/`getStarter()`. Remaining: the "two roads" *card UI* in the builder
