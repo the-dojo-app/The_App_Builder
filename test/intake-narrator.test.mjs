@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { narrateProposal, checkpoint, greeting, suggestNext, renderNarration, consequenceOf, decisionRecord, explainRecord } from '../src/intake/narrator.mjs';
+import { narrateProposal, checkpoint, greeting, suggestNext, renderNarration, consequenceOf, decisionRecord, explainRecord, moduleOffers } from '../src/intake/narrator.mjs';
 import { reviewProposal } from '../src/intake/intake.mjs';
 import { getStarter } from '../src/intake/starters.mjs';
 
@@ -86,6 +86,25 @@ test('explainRecord gives a plain-English read that always ends reversible + jar
   assert.match(txt, /Bold & Vibrant/);
   assert.match(txt, /reversible|rewind/i);
   assert.doesNotMatch(txt, /theme|token|module|dataModel|Spec/);
+});
+
+test('moduleOffers: reflects what is installed and recommends missing big blocks', () => {
+  const dojoOffers = moduleOffers(dojo);
+  assert.ok(dojoOffers.find(o => o.type === 'content-library').installed);   // Dojo has both big blocks
+  assert.ok(dojoOffers.find(o => o.type === 'progression').installed);
+  assert.ok(dojoOffers.every(o => !o.recommended));                          // nothing missing → nothing recommended
+  const kbOffers = moduleOffers(getStarter('knowledgebase'));
+  const prog = kbOffers.find(o => o.type === 'progression');
+  assert.equal(prog.installed, false);
+  assert.equal(prog.recommended, true);                                      // KB lacks levels → recommended
+});
+
+test('moduleOffers: every add/remove offer is a buildable proposal', () => {
+  const kb = getStarter('knowledgebase');
+  for (const o of moduleOffers(kb)) {
+    if (!o.installed) assert.equal(reviewProposal(kb, o.addOps).ok, true, `add ${o.type} must build`);
+    else assert.equal(reviewProposal(kb, o.removeOps).ok, true, `remove ${o.type} must build`);
+  }
 });
 
 test('renderNarration produces readable text', () => {

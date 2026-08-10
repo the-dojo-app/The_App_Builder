@@ -127,11 +127,25 @@
   .card .start{background:var(--accent);color:var(--accent-ink);font-weight:700;text-align:center;padding:12px;border-radius:11px;cursor:pointer;margin-top:auto}
 
   /* build log / decision ledger modal */
-  #logmodal, #costmodal{position:absolute;inset:0;background:rgba(4,7,9,.97);z-index:30;overflow-y:auto;padding:40px 24px;display:none}
-  #logmodal h1, #costmodal h1{text-align:center;font-size:24px;margin:0 0 4px}
-  #logmodal .lead, #costmodal .lead{text-align:center;color:var(--muted);margin:0 auto 24px;max-width:520px;font-size:13px;line-height:1.6}
-  #logmodal .close, #costmodal .close{position:absolute;top:20px;right:24px;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
-  #logmodal .close:hover, #costmodal .close:hover{color:var(--text)}
+  #logmodal, #costmodal, #modmodal{position:absolute;inset:0;background:rgba(4,7,9,.97);z-index:30;overflow-y:auto;padding:40px 24px;display:none}
+  #logmodal h1, #costmodal h1, #modmodal h1{text-align:center;font-size:24px;margin:0 0 4px}
+  #logmodal .lead, #costmodal .lead, #modmodal .lead{text-align:center;color:var(--muted);margin:0 auto 24px;max-width:540px;font-size:13px;line-height:1.6}
+  #logmodal .close, #costmodal .close, #modmodal .close{position:absolute;top:20px;right:24px;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
+  #logmodal .close:hover, #costmodal .close:hover, #modmodal .close:hover{color:var(--text)}
+
+  /* module picker / toolbox */
+  .modlist{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  .mod{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow-raised)}
+  .mod.rec{border-color:var(--accent)}
+  .mod .mt{flex:1}
+  .mod .mt .mh{font-family:var(--font-heading);font-weight:700;font-size:15px;display:flex;align-items:center;gap:9px}
+  .mod .mt .ms{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.5}
+  .mod .badge{background:rgba(16,159,147,.16);color:var(--accent-text);font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .mod .added{color:var(--accent-text);font-size:13px;font-weight:600}
+  .mod .madd{background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;padding:9px 15px;border-radius:10px;cursor:pointer;white-space:nowrap}
+  .mod .mrem{color:var(--muted);font-size:12px;cursor:pointer;border:1px solid var(--line);border-radius:9px;padding:7px 11px}
+  .mod .mrem:hover{color:var(--text)}
+  .mod .mright{display:flex;align-items:center;gap:10px;flex:none}
 
   /* cost calculator */
   .costwrap{max-width:600px;margin:0 auto}
@@ -176,6 +190,7 @@
     <div class="mark">⛩️</div>
     <div><span class="title">Appgnostic</span> <span class="sub">any app you can describe</span></div>
     <div class="spacer"></div>
+    <div class="hbtn" id="modbtn" style="display:none">🧩 Modules</div>
     <div class="hbtn" id="costbtn" style="display:none">💰 Costs</div>
     <div class="hbtn" id="logbtn" style="display:none">📋 Build log <span id="logn">0</span></div>
     <div class="hbtn disabled" id="undo">↺ Undo</div>
@@ -225,20 +240,27 @@
       <div id="costout"></div>
     </div>
   </div>
+
+  <div id="modmodal">
+    <div class="close" id="modclose">Close</div>
+    <h1>Your toolbox</h1>
+    <p class="lead">Build your app from modules — add just the ones this job needs onto your core app. The ones we recommend for what you're building are marked. You can add or remove any of them anytime.</p>
+    <div class="modlist" id="modlist"></div>
+  </div>
 </div>
 
 <script type="module">
 import { listStarters, getStarter } from '../src/intake/starters.mjs';
 import { reviewProposal } from '../src/intake/intake.mjs';
 import { buildPreview, renderPreviewHTML } from '../src/intake/preview.mjs';
-import { narrateProposal, greeting, checkpoint, suggestNext, decisionRecord, explainRecord } from '../src/intake/narrator.mjs';
+import { narrateProposal, greeting, checkpoint, suggestNext, decisionRecord, explainRecord, moduleOffers } from '../src/intake/narrator.mjs';
 import { themeProposals } from '../src/intake/themes.mjs';
 import { estimateCost, summarizeCost, estimateBusiness, summarizeBusiness } from '../src/intake/cost.mjs';
 
 const $ = s => document.querySelector(s);
 const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewLabel'),
       timeline = $('#timeline'), tlabel = $('#tlabel'), reassure = $('#reassure'),
-      undoBtn = $('#undo'), redoBtn = $('#redo'), logbtn = $('#logbtn'), costbtn = $('#costbtn');
+      undoBtn = $('#undo'), redoBtn = $('#redo'), logbtn = $('#logbtn'), costbtn = $('#costbtn'), modbtn = $('#modbtn');
 const co = 'Your co-builder';
 let spec = null, history = [], cursor = -1, pending = false, buildsSinceCheckpoint = 0, lookChosen = false, ledger = [];
 const costInputs = { members: 100, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 100, services: [{ id: 'marketing', label: 'Marketing campaign', budget: 0, maxSpend: 0 }] };
@@ -346,9 +368,33 @@ $('#cmktmax').addEventListener('input', e => { costInputs.services[0].maxSpend =
 costbtn.addEventListener('click', openCosts);
 $('#costclose').addEventListener('click', closeCosts);
 
+// ── module picker / toolbox ────────────────────────────────────────────────────
+function closeModules() { $('#modmodal').style.display = 'none'; }
+function openModules() { renderModules(); $('#modmodal').style.display = 'block'; }
+function renderModules() {
+  const offers = moduleOffers(spec);
+  $('#modlist').innerHTML = offers.map((o, i) => `<div class="mod ${o.recommended ? 'rec' : ''}" data-i="${i}">
+      <div class="mt">
+        <div class="mh">${esc(o.name)}${o.recommended ? '<span class="badge">Recommended</span>' : ''}</div>
+        <div class="ms">${esc(o.summary)}</div>
+      </div>
+      <div class="mright">${o.installed
+        ? `<span class="added">✓ Added</span><span class="mrem" data-rem>Remove</span>`
+        : `<span class="madd" data-add>Add to my app</span>`}</div>
+    </div>`).join('');
+  $('#modlist').querySelectorAll('.mod').forEach(card => {
+    const o = offers[+card.dataset.i];
+    const add = card.querySelector('[data-add]'), rem = card.querySelector('[data-rem]');
+    if (add) add.addEventListener('click', () => { closeModules(); proposeReview(o.addOps, o.name); });
+    if (rem) rem.addEventListener('click', () => { closeModules(); proposeReview(o.removeOps, 'Remove ' + o.name); });
+  });
+}
+modbtn.addEventListener('click', openModules);
+$('#modclose').addEventListener('click', closeModules);
+
 // ── gallery ──────────────────────────────────────────────────────────────────
 function showGallery() {
-  costbtn.style.display = 'none'; logbtn.style.display = 'none';
+  costbtn.style.display = 'none'; logbtn.style.display = 'none'; modbtn.style.display = 'none';
   const cards = listStarters();
   const g = $('#gallery'); g.style.display = 'block';
   g.innerHTML = `<h1>Pick a starting point</h1>
@@ -368,7 +414,7 @@ function showGallery() {
 function pickStarter(id) {
   spec = getStarter(id); $('#gallery').style.display = 'none'; log.innerHTML = '';
   history = []; cursor = -1; pending = false; buildsSinceCheckpoint = 0; lookChosen = false; ledger = [];
-  closeLog(); closeCosts(); updateLogBtn(); costbtn.style.display = 'block';
+  closeLog(); closeCosts(); closeModules(); updateLogBtn(); costbtn.style.display = 'block'; modbtn.style.display = 'block';
   const g = greeting(spec);
   bubble(`<div class="co">${co}</div><h3>${esc(g.headline)}</h3><div class="sum">${esc(g.summary)}</div>`);
   pushHistory(((spec.app && spec.app.name) || 'Start') + ' · start');

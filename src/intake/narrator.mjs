@@ -167,6 +167,43 @@ export function explainRecord(rec) {
   return parts.join(' ');
 }
 
+// ── the MODULE PICKER / toolbox (Will 2026-08-10: build your app by picking the modules the job
+// needs, added onto a core app). Each offer is the module's card + a READY add/remove proposal, so
+// the picker rides the same gate → preview → confirm spine. `recommended` = a big building block the
+// app is missing (the "you'll want these tools for this job" nudge).
+const MODULE_LIBRARY_OFFERS = [
+  {
+    type: 'content-library', name: 'Content library', bigBlock: true,
+    summary: 'A browsable library of lessons, resources, or media — with completion tracking.',
+    addOps: [
+      { target: 'dataModels', op: 'add', value: { id: 'resources', concept: 'contentItem', owner: 'app', access: 'public', fields: [{ id: 'title', type: 'text' }, { id: 'body', type: 'longtext' }] } },
+      { target: 'modules', op: 'add', value: { type: 'content-library', config: { collection: 'resources', itemConcept: 'contentItem', formats: ['article', 'video', 'pdf', 'image'], taxonomy: [], surfaces: { catalogue: { pageId: 'library', audience: { who: 'members' }, showAll: true } } } } },
+      { target: 'pages', op: 'add', value: { id: 'library', title: 'Library', audience: { who: 'members' }, nav: { section: 'main', label: 'Library' }, blocks: [] } }
+    ]
+  },
+  {
+    type: 'progression', name: 'Levels & progress', bigBlock: true,
+    summary: 'Levels or tiers members climb by meeting criteria — a reason to keep coming back.',
+    addOps: [{ target: 'modules', op: 'add', value: { type: 'progression', config: { unitConcept: 'progressionUnit', units: ['Level 1', 'Level 2', 'Level 3'], badgesPerUnit: 3, retroactive: false, viz: 'list' } } }]
+  },
+  {
+    type: 'rbac', name: 'Roles & access', bigBlock: false,
+    summary: 'Roles and who-can-do-what — staff, admins, and members with different access.',
+    addOps: [{ target: 'modules', op: 'add', value: { type: 'rbac', config: {} } }]
+  }
+];
+
+export function moduleOffers(spec) {
+  const installed = new Set(((isObj(spec) && Array.isArray(spec.modules)) ? spec.modules : []).map(m => m && m.type));
+  return MODULE_LIBRARY_OFFERS.map(o => ({
+    type: o.type, name: o.name, summary: o.summary,
+    installed: installed.has(o.type),
+    recommended: o.bigBlock && !installed.has(o.type),
+    addOps: o.addOps,
+    removeOps: [{ target: 'modules', op: 'remove', id: o.type }]
+  }));
+}
+
 // Plain-text rendering of any narration object — for logs, tests, and a no-frills fallback.
 export function renderNarration(n) {
   if (!isObj(n)) return '';
