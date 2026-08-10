@@ -1,4 +1,4 @@
-# appforge *(working name)*
+# The App Builder
 
 A **clone-first, AI-driven app-builder platform** — a way to create apps easily from all the
 design and functionality tooling proven in "The Dojo App," which becomes **reference app #1**.
@@ -7,7 +7,7 @@ An owner describes what they want in plain language; an AI **intake** authors a 
 **App Spec**; a deterministic **assembler** validates it and renders it into a running app — safe
 by construction, because the AI only ever proposes Spec diffs inside a validated envelope.
 
-> **Working name.** `appforge` is a placeholder — rename anytime (this file + `package.json`).
+Repo: `github.com/the-dojo-app/The_App_Builder`.
 
 ## Design source of truth (`docs/`)
 
