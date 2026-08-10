@@ -29,6 +29,7 @@ The Dojo was shelved 2026-08-10 to build its underlying builder as a separate pr
 3. `docs/MODULE_CONTENT_LIBRARY.md` · `docs/MODULE_PROGRESSION.md` · `docs/MODULE_RBAC.md` ·
    `docs/MODULE_COMMERCE.md` (DRAFT — the "build a shop" module) · `docs/MODULE_ACTIVITY_LOG.md`
    (DRAFT — the connective event stream: feed/analytics/audit + progression evidence) ·
+   `docs/MODULE_MESSAGING.md` (DRAFT — conversations: DMs + community channels) ·
    `docs/CONNECTORS.md` (DRAFT — the connector layer: external SaaS via a vetted, bounded contract) ·
    `docs/EXPERIENCE.md` (the build-experience layer + the shipped chrome)
 4. `docs/ASSEMBLER.md` — the spec→app engine (cleanSpec + plan/apply, runtime-config vs deploy-artifact)

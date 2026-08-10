@@ -201,6 +201,16 @@ const MODULE_LIBRARY_OFFERS = [
     ]
   },
   {
+    type: 'messaging', name: 'Messaging', bigBlock: false,
+    summary: 'Let members message each other and join community channels, with an inbox.',
+    addOps: [
+      { target: 'dataModels', op: 'add', value: { id: 'threads', concept: 'thread', owner: 'member', access: 'owner-read', fields: [{ id: 'kind', type: 'select', values: ['dm', 'channel'] }, { id: 'participants', type: 'list', of: [{ id: 'memberRef', type: 'ref', ref: 'members' }] }, { id: 'title', type: 'text' }, { id: 'lastAt', type: 'timestamp' }] } },
+      { target: 'dataModels', op: 'add', value: { id: 'messages', concept: 'message', owner: 'member', access: 'owner-read', fields: [{ id: 'threadRef', type: 'ref', ref: 'threads' }, { id: 'sender', type: 'ref', ref: 'members' }, { id: 'body', type: 'longtext' }, { id: 'ts', type: 'timestamp' }, { id: 'removed', type: 'bool', default: false }] } },
+      { target: 'modules', op: 'add', value: { type: 'messaging', config: { threadCollection: 'threads', messageCollection: 'messages', modes: ['dm', 'channel'], moderation: { staffCanRemove: true }, emitsTo: ['activity-log'], notifyOnMessage: true, surfaces: { inbox: { pageId: 'messages', audience: { who: 'members' } }, thread: { pageId: 'thread', audience: { who: 'members' } } } } } },
+      { target: 'pages', op: 'add', value: { id: 'messages', title: 'Messages', audience: { who: 'members' }, nav: { section: 'main', label: 'Messages' }, blocks: [] } }
+    ]
+  },
+  {
     type: 'commerce', name: 'Shop', bigBlock: false,
     summary: 'Sell products — cart, checkout, orders. Comes with Stripe for payments (bring your key).',
     addOps: [

@@ -13,6 +13,7 @@ import { cleanContentConfig } from './modules/content-library.mjs';
 import { cleanProgressionConfig } from './modules/progression.mjs';
 import { cleanCommerceConfig } from './modules/commerce.mjs';
 import { cleanActivityConfig } from './modules/activity-log.mjs';
+import { cleanMessagingConfig } from './modules/messaging.mjs';
 import { cleanProviders } from './shell/providers.mjs';
 import { cleanIntegrations } from './shell/connectors.mjs';
 
@@ -40,6 +41,7 @@ const KNOWN_MODULES = {
   'progression': cleanProgressionConfig,
   'commerce': cleanCommerceConfig,
   'activity-log': cleanActivityConfig,
+  'messaging': cleanMessagingConfig,
   'rbac': cfg => (isObj(cfg) ? cfg : {})   // rbac config lives in the top-level `auth` block (cleanAuth)
 };
 

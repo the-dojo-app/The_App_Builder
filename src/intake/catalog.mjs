@@ -81,6 +81,17 @@ const MODULE_LIBRARY = [
     }
   },
   {
+    type: 'messaging',
+    summary: 'Conversations — direct messages between members and/or community channels, with an inbox and staff moderation.',
+    needs: 'a threads + messages dataModel; uses rbac for moderation and activity-log/notifications for signals.',
+    config: {
+      modes: 'dm, channel, or both',
+      channels: 'named community rooms (channel mode), each audience-scoped',
+      moderation: '{ staffCanRemove, membersCanDelete }',
+      surfaces: '{ inbox, thread } — which pages, to whom'
+    }
+  },
+  {
     type: 'commerce',
     summary: 'A shop: products, cart, checkout, orders, fulfilment. Reuses the content library for the storefront.',
     needs: 'a products dataModel + a PAYMENTS connector in integrations.payments (e.g. stripe) — required.',
