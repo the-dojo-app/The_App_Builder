@@ -90,7 +90,19 @@
         "labelsRef": "config/badgeLabels",
         "retroactive": false,
         "viz": "orbit",
-        "appMechanics": ["wing-time"]
+        "appMechanics": ["wing-time"],
+        "rules": {
+          "White": { "badges": [
+            { "slot": 1, "mechanic": "continuity-chain", "params": { "window": 86400000, "target": 1 } },
+            { "slot": 5, "mechanic": "required-content", "params": { "contentModule": "content-library", "scope": "unit" } },
+            { "slot": 7, "mechanic": "consecutive-days", "params": { "days": 3 } }
+          ] },
+          "Black": { "badges": [
+            { "slot": 5, "mechanic": "appspecific:wing-time", "params": {} },
+            { "slot": 7, "mechanic": "score-floor", "params": { "min": 90 } },
+            { "slot": 8, "mechanic": "score-floor", "params": { "min": 91 } }
+          ] }
+        }
       }
     }
   ],

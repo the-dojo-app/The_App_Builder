@@ -3,6 +3,8 @@
 // doc itself (per-unit badge slots → mechanic + params) is a separate config doc validated by a
 // cleanRules/cleanMechanic pass (the mechanic library — a follow-on). See docs/MODULE_PROGRESSION.md.
 
+import { cleanRules } from './rules.mjs';
+
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const isStr = v => typeof v === 'string' && v.length > 0;
 const isNum = v => typeof v === 'number' && isFinite(v);
@@ -34,8 +36,11 @@ export function cleanProgressionConfig(config) {
   }
   if (isStr(c.rulesRef)) out.rulesRef = c.rulesRef;
   if (isStr(c.labelsRef)) out.labelsRef = c.labelsRef;
+  if (Array.isArray(c.appMechanics)) out.appMechanics = c.appMechanics.filter(m => SLUG.test(m || '')).slice(0, MAX_MECHANICS);
+  // Optional INLINE rules doc (per-unit badge slots → mechanic + params), validated against the
+  // mechanic library + the registered appMechanics. A `rulesRef` pointer is the alternative.
+  if (isObj(c.rules)) out.rules = cleanRules(c.rules, { units: out.units, appMechanics: out.appMechanics || [] });
   out.retroactive = c.retroactive === true;   // default false — never retroactive
   if (VIZ[c.viz]) out.viz = c.viz;
-  if (Array.isArray(c.appMechanics)) out.appMechanics = c.appMechanics.filter(m => SLUG.test(m || '')).slice(0, MAX_MECHANICS);
   return out;
 }
