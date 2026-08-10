@@ -77,10 +77,12 @@ app/
                       (zero build step); runs the whole intake loop client-side. Serve over http.
 seams/                the IMPURE boundary (outside src/ so the engine stays pure):
   llm-propose.mjs     makeLlmPropose — runIntake's propose() backed by a real Anthropic call (BYO key)
+  firebase-executor.mjs  makeFirebaseExecutor / applySpecLive — plan ops → Firestore config docs (injected db)
 bin/                  runnable CLIs (the only I/O):
   materialize.mjs     write a Spec's bundle to disk (--starter <id> <out>)
   intake.mjs          run the live AI intake once on APPGNOSTIC_ANTHROPIC_KEY
-test/                 node --test suites (170 across 24 files)
+  deploy.mjs          materialize + seed Firestore (lazy firebase-admin; refuses the Dojo project)
+test/                 node --test suites (174 across 26 files)
 ```
 
 ## 5. Current status — Phase 0 (engine feature-complete in isolation)
@@ -115,9 +117,16 @@ runIntake's `propose` with a real Anthropic call (Node fetch, zero-dep); pure pr
 memory). The model's output is still gated by `cleanSpec`; the whole loop is tested with a mock fetch
 (no key/spend). `runIntake` is now async (awaits propose).
 
-**The one boundary still left:** a **Firebase-bound executor** (push the materialized ops to a real
-project) + `firebase deploy`. Needs a **SEPARATE Firebase project** + the owner's go — never
-`the-dojo-app-b7004`, never provision unprompted.
+**The Firebase-bound executor is WIRED too (2026-08-10).** `seams/firebase-executor.mjs`
+(`makeFirebaseExecutor` / `applySpecLive`) maps the plan's ops to Firestore `config/*` writes
+(genRulesFile stays a deploy artifact); the `db` is injected, so it's proven against a mock (no
+project/creds). `bin/deploy.mjs` materializes the bundle + seeds Firestore via the Admin SDK
+(lazy-imported → repo stays zero-dep) and **refuses `the-dojo-app-b7004`** (separation).
+
+**Nothing structural is left — both seams are code-complete.** To go fully live is now an OWNER
+action, not a build: run `bin/intake.mjs` with `APPGNOSTIC_ANTHROPIC_KEY`, and `bin/deploy.mjs` with a
+service account for a **SEPARATE** Firebase project (+ `npm i firebase-admin` + `firebase deploy`).
+Never target the Dojo project; never provision/create keys unprompted.
 
 ## 6. The Dojo as a read-only reference
 
