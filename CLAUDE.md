@@ -27,8 +27,9 @@ The Dojo was shelved 2026-08-10 to build its underlying builder as a separate pr
 1. `docs/PLATFORM.md` — strategy, the shell/domain line, the capability-module library, the roadmap
 2. `docs/APP_SPEC.md` — the declarative App Spec schema (the core artifact)
 3. `docs/MODULE_CONTENT_LIBRARY.md` · `docs/MODULE_PROGRESSION.md` · `docs/MODULE_RBAC.md` ·
-   `docs/MODULE_COMMERCE.md` (DRAFT — the "build a shop" module + the first connector contract)
-   · `docs/EXPERIENCE.md` (the build-experience layer + the shipped chrome)
+   `docs/MODULE_COMMERCE.md` (DRAFT — the "build a shop" module) · `docs/CONNECTORS.md` (DRAFT — the
+   connector layer: external SaaS via a vetted, bounded contract) ·
+   `docs/EXPERIENCE.md` (the build-experience layer + the shipped chrome)
 4. `docs/ASSEMBLER.md` — the spec→app engine (cleanSpec + plan/apply, runtime-config vs deploy-artifact)
 5. `docs/AI_INTAKE.md` — the interview→Spec front door
 

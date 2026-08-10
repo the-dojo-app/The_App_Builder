@@ -146,8 +146,8 @@ refund(order, amountCents, ctx) → { ok, connectorRef }
 - **Zapier is the breadth escape hatch:** one `automation:zapier` webhook connector reaches thousands
   of downstream apps without a bespoke adapter (per the connectors plan). Native connectors
   (Stripe/QuickBooks) exist where a first-class integration beats a generic webhook.
-- A general **CONNECTORS.md** should generalize this contract once a second module needs connectors;
-  for now it lives here, where it's first used.
+- The general **`CONNECTORS.md`** now generalizes this contract (categories, catalog, `cleanIntegrations`,
+  the executor-seam execution model) — commerce is its first consumer.
 
 ## 8. Composition & shell-reuse
 
@@ -196,6 +196,6 @@ implemented as a fast-follow after one-off checkout works (roles first, being si
 5. **First payments connector = Stripe** (best docs + embedded elements → we never touch card data),
    with **Zapier alongside** for breadth. Shopify follows for owners with an existing store.
 
-**Still genuinely open** (surfaced during build, not blocking sign-off): whether the general
-`CONNECTORS.md` is written now or when a 2nd module needs connectors (§7); the `completions`-style
-store location shared with an activity-log module (adjacent, unspecced).
+**Still genuinely open** (surfaced during build, not blocking sign-off): the `completions`-style
+store location shared with an activity-log module (adjacent, unspecced). (`CONNECTORS.md` is now
+written — the connector contract is generalized there.)
