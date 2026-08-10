@@ -30,6 +30,13 @@ export function materialize(spec) {
   // serves this index.html and you have a visitable app. (Live per-member data layers on later.)
   put('index.html', renderRuntimeHTML(buildRuntimeModel(cleaned, { demo: true })));
 
+  // Firebase deploy config — hosting serves ONLY the app (index.html); the config/*.json + rules are
+  // for Firestore seeding, not the web. So `firebase deploy` from this dir just works.
+  put('firebase.json', json({
+    hosting: { public: '.', ignore: ['firebase.json', '**/.*', 'config/**', 'firestore.rules', 'README.txt'] },
+    firestore: { rules: 'firestore.rules' }
+  }));
+
   // a small human-facing manifest so a bundle is self-describing
   put('README.txt', [
     `App: ${(cleaned.app && cleaned.app.name) || (cleaned.app && cleaned.app.id) || 'app'}`,
