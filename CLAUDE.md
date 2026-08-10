@@ -93,11 +93,18 @@ modules:  content-library ✓   progression ✓   rbac ✓    (all logic-complet
 - **content-library**: config validator + the **six-format renderer** + the **completion flow**
   (`computeRequiredSignal` → feeds progression's `required-content`, proven end-to-end).
 - **rbac**: `cleanAuth` + rules generation + grant/roster decisions (last-owner guard, token-revoke).
-- **69 tests, all pure, all green.**
+- **163 tests, all pure, all green.** Seven modules (content-library, progression, rbac, commerce,
+  activity-log, messaging, booking) + provider & connector catalogs, all gated by `cleanSpec`.
 
-**The one boundary left to "live":** binding the executor + `gen-rules` to a real Firebase project
-(turns a validated Spec into a running clone). Needs infra provisioning + the owner's go — do NOT
-provision infra unprompted.
+**The MATERIALIZER shipped (2026-08-10) — the safe half of "live".** `src/materialize.mjs` (pure)
+turns a validated Spec → a real deployable artifact bundle (`config/*.json` docs + generated
+`firestore.rules` + pages registry + appSpec snapshot); `bin/materialize.mjs` writes it to disk
+(`node bin/materialize.mjs --starter academy <out>`). Same op set a Firebase executor would push —
+disk today, Firestore/Hosting later.
+
+**The one boundary still left:** a **Firebase-bound executor** (push the same ops to a real project)
++ `firebase deploy`, and/or the **LLM `propose` seam** (free-text building on the owner's key). Both
+need infra/keys + the owner's go — do NOT provision infra or create keys unprompted.
 
 ## 6. The Dojo as a read-only reference
 
