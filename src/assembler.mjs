@@ -7,7 +7,10 @@
 import { cleanTheme, checkContrast } from './shell/theme-validator.mjs';
 import { genRules } from './shell/rules-gen.mjs';
 import { cleanBlockTree } from './shell/block-tree.mjs';
+import { cleanDataModels } from './shell/data-model.mjs';
+import { cleanAuth } from './shell/auth.mjs';
 import { cleanContentConfig } from './modules/content-library.mjs';
+import { cleanProgressionConfig } from './modules/progression.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const isStr = v => typeof v === 'string' && v.length > 0;
@@ -30,8 +33,8 @@ function blockOpts(out) {
 // cleanConfig lands with each module) — but the TYPE must be known here.
 const KNOWN_MODULES = {
   'content-library': cleanContentConfig,
-  'progression': cfg => (isObj(cfg) ? cfg : {}),   // TODO: cleanProgressionConfig (docs/MODULE_PROGRESSION.md)
-  'rbac': cfg => (isObj(cfg) ? cfg : {})
+  'progression': cleanProgressionConfig,
+  'rbac': cfg => (isObj(cfg) ? cfg : {})   // rbac config lives in the top-level `auth` block (cleanAuth)
 };
 
 export function cleanSpec(spec) {
@@ -50,8 +53,8 @@ export function cleanSpec(spec) {
   const contrastErr = checkContrast(out.theme);
   if (contrastErr) errors.push(contrastErr);
 
-  out.auth = isObj(s.auth) ? s.auth : {};
-  out.dataModels = Array.isArray(s.dataModels) ? s.dataModels : [];
+  out.auth = cleanAuth(s.auth);              // roles/capabilities/signup/grant bounded; owner guaranteed
+  out.dataModels = cleanDataModels(s.dataModels);   // bounded field types; owner/access whitelisted
 
   // MODULES — validate each config through its module's cleaner; reject unknown types.
   out.modules = [];
