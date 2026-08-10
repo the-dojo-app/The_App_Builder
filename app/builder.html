@@ -211,6 +211,8 @@
         <div class="ctrl"><label>Things each does / month <b id="cav">20</b></label><input type="range" id="cactivity" min="1" max="100" step="1" value="20"></div>
         <div class="ctrl"><label>Price / paying member / mo <b id="cpv">$10</b></label><input type="range" id="cprice" min="0" max="100" step="1" value="10"></div>
         <div class="ctrl"><label>Share who pay <b id="cppv">100%</b></label><input type="range" id="cpct" min="0" max="100" step="5" value="100"></div>
+        <div class="ctrl"><label>Marketing budget / mo <b id="cmktv">$0</b></label><input type="range" id="cmkt" min="0" max="2000" step="25" value="0"></div>
+        <div class="ctrl"><label>Max campaign spend / mo <b id="cmktmaxv">$0</b></label><input type="range" id="cmktmax" min="0" max="5000" step="50" value="0"></div>
       </div>
       <div id="costout"></div>
     </div>
@@ -231,7 +233,7 @@ const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewL
       undoBtn = $('#undo'), redoBtn = $('#redo'), logbtn = $('#logbtn'), costbtn = $('#costbtn');
 const co = 'Your co-builder';
 let spec = null, history = [], cursor = -1, pending = false, buildsSinceCheckpoint = 0, lookChosen = false, ledger = [];
-const costInputs = { members: 100, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 100 };
+const costInputs = { members: 100, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 100, services: [{ id: 'marketing', label: 'Marketing campaign', budget: 0, maxSpend: 0 }] };
 
 const clone = x => structuredClone(x);
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
@@ -316,7 +318,11 @@ function renderCostOut() {
     <div class="costsum">${esc(summarizeCost(est))}</div>
     <div class="costsec">Every month, to run it</div>
     ${lines}
-    <div class="costtot"><span>Estimated monthly</span><span class="r">${money(m.low)} – ${money(m.high)}${m.freeTier ? ' · often free' : ''}</span></div>
+    <div class="costtot"><span>${m.services.lines.length ? 'Infrastructure' : 'Estimated monthly'}</span><span class="r">${money(m.low)} – ${money(m.high)}${m.freeTier ? ' · often free' : ''}</span></div>
+    ${m.services.lines.length ? `
+      <div class="costsec" style="margin-top:18px">Services & campaigns</div>
+      ${m.services.lines.map(sv => `<div class="costline"><span>${esc(sv.label)}<div class="cl-note">${esc(sv.note)}</div></span><span class="cl-amt">${money(sv.amount)}</span></div>`).join('')}
+      <div class="costtot"><span>All-in monthly</span><span class="r">${money(m.allIn)}${m.services.max > m.services.total ? ` · up to ${money(m.allInHigh)}` : ''}</span></div>` : ''}
     <div class="costsec" style="margin-top:20px">One-time, to build it</div>
     ${one}
     <div class="costtot"><span>Estimated one-time</span><span class="r">${money(est.oneTime.low)} – ${money(est.oneTime.high)}</span></div>
@@ -327,6 +333,8 @@ $('#cmembers').addEventListener('input', e => { costInputs.members = +e.target.v
 $('#cactivity').addEventListener('input', e => { costInputs.activityPerMonth = +e.target.value; $('#cav').textContent = e.target.value; renderCostOut(); });
 $('#cprice').addEventListener('input', e => { costInputs.pricePerMonth = +e.target.value; $('#cpv').textContent = '$' + e.target.value; renderCostOut(); });
 $('#cpct').addEventListener('input', e => { costInputs.percentPaying = +e.target.value; $('#cppv').textContent = e.target.value + '%'; renderCostOut(); });
+$('#cmkt').addEventListener('input', e => { costInputs.services[0].budget = +e.target.value; $('#cmktv').textContent = '$' + e.target.value; renderCostOut(); });
+$('#cmktmax').addEventListener('input', e => { costInputs.services[0].maxSpend = +e.target.value; $('#cmktmaxv').textContent = '$' + e.target.value; renderCostOut(); });
 costbtn.addEventListener('click', openCosts);
 $('#costclose').addEventListener('click', closeCosts);
 

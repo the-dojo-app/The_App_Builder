@@ -87,4 +87,28 @@ test('summarizeBusiness is plain-English with dollars and no jargon', () => {
   assert.doesNotMatch(txt, /Firestore|contribution|dataModel|Spec/);
 });
 
+test('services (e.g. a marketing campaign) add to the all-in cost, with a max-spend cap', () => {
+  const base = estimateCost(dojo, { members: 500, activityPerMonth: 20 });
+  const withMkt = estimateCost(dojo, { members: 500, activityPerMonth: 20, services: [{ id: 'marketing', label: 'Marketing campaign', budget: 300, maxSpend: 500 }] });
+  assert.equal(withMkt.monthly.services.total, 300);
+  assert.equal(withMkt.monthly.services.max, 500);
+  assert.equal(withMkt.monthly.allIn, round2(base.monthly.total + 300));   // infra unchanged + budget
+  assert.ok(withMkt.monthly.services.lines[0].note.includes('500'));       // cap surfaced
+});
+
+test('untouched services are skipped; maxSpend is floored at budget', () => {
+  const e = estimateCost(dojo, { members: 100, activityPerMonth: 20, services: [{ label: 'Empty', budget: 0, maxSpend: 0 }, { label: 'Ads', budget: 200, maxSpend: 50 }] });
+  assert.equal(e.monthly.services.lines.length, 1);           // the empty one skipped
+  assert.equal(e.monthly.services.lines[0].cap, 200);        // maxSpend < budget → floored to budget
+});
+
+test('a marketing budget lowers profit and raises the break-even point', () => {
+  const inp = { members: 1000, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 100 };
+  const plain = estimateBusiness(dojo, inp);
+  const withMkt = estimateBusiness(dojo, { ...inp, services: [{ id: 'marketing', label: 'Marketing', budget: 500, maxSpend: 800 }] });
+  assert.ok(withMkt.profit < plain.profit);
+  assert.ok(withMkt.cost >= plain.cost + 499);               // the $500 budget is in the cost
+  assert.ok(withMkt.breakEven.members >= plain.breakEven.members);
+});
+
 function round2(n) { return Math.round(n * 100) / 100; }

@@ -78,6 +78,22 @@ export function estimateCost(spec, inputs = {}) {
   const total = round(lines.reduce((a, l) => a + l.amount, 0));
   const freeTier = round(cReads + cWrites + cStorage + cEgress + cFns) === 0;   // only the domain is billable
 
+  // ---- optional SERVICES we offer that add cost (marketing campaigns, etc.) — each with a budget and
+  // a max-spend cap so the owner knows what they're getting into before committing (Will 2026-08-10).
+  const services = (Array.isArray(inputs.services) ? inputs.services : []).map(sv => {
+    if (!isObj(sv)) return null;
+    const budget = clampNum(sv.budget, 0, 10000000, 0);
+    if (budget <= 0 && clampNum(sv.maxSpend, 0, 10000000, 0) <= 0) return null;   // skip untouched services
+    const maxSpend = Math.max(budget, clampNum(sv.maxSpend, 0, 10000000, budget));
+    return {
+      label: typeof sv.label === 'string' ? sv.label : 'Service',
+      amount: round(budget), cap: round(maxSpend),
+      note: maxSpend > budget ? `planned spend; capped at $${round(maxSpend)}/mo` : 'fixed spend'
+    };
+  }).filter(Boolean);
+  const servicesTotal = round(services.reduce((a, s) => a + s.amount, 0));
+  const servicesMax = round(services.reduce((a, s) => a + s.cap, 0));
+
   // ---- one-time build (mostly the AI conversation on the owner's key) ---------
   const oneTime = {
     lines: [
@@ -97,7 +113,10 @@ export function estimateCost(spec, inputs = {}) {
       total,
       low: round(total * 0.7),           // ±uncertainty band
       high: round(total * 1.6),
-      freeTier
+      freeTier,
+      services: { lines: services, total: servicesTotal, max: servicesMax },
+      allIn: round(total + servicesTotal),          // infra + services, the true monthly outflow
+      allInHigh: round(total * 1.6 + servicesMax)
     },
     oneTime,
     disclaimer: 'A ballpark, not a bill. Real cost depends on how members actually use the app. Everything here runs on your own accounts — you own it, and we take no cut.'
@@ -113,8 +132,11 @@ export function estimateBusiness(spec, inputs = {}) {
   const price = clampNum(inputs.pricePerMonth, 0, 100000, 10);       // what a PAYING member pays/month
   const percentPaying = clampNum(inputs.percentPaying, 0, 100, 100); // freemium share who actually pay
 
-  const costNow = estimateCost(spec, { members, activityPerMonth }).monthly.total;
-  const costFixed = estimateCost(spec, { members: 1, activityPerMonth }).monthly.total;   // ~member-independent
+  const services = Array.isArray(inputs.services) ? inputs.services : [];
+  // all-in monthly cost = infra + services (marketing etc.). Services are fixed, so they raise the bar
+  // to break even. costFixed carries them too, so per-member cost stays purely infra-driven.
+  const costNow = estimateCost(spec, { members, activityPerMonth, services }).monthly.allIn;
+  const costFixed = estimateCost(spec, { members: 1, activityPerMonth, services }).monthly.allIn;
   const costPerMember = members > 0 ? Math.max(0, (costNow - costFixed) / members) : 0;
 
   const payFrac = percentPaying / 100;
