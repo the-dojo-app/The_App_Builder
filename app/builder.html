@@ -8,7 +8,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The App Builder</title>
+<title>Appgnostic</title>
 <style>
   :root{
     --bg:#070b0d; --panel:#0f1417; --panel-2:#131a1e; --line:rgba(255,255,255,.08);
@@ -117,6 +117,25 @@
   .card .mini{height:200px;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:14px;background:#0F171D;position:relative}
   .card .mini iframe{position:absolute;top:0;left:50%;width:390px;height:720px;border:0;transform:translateX(-50%) scale(.5);transform-origin:top center}
   .card .start{background:var(--accent);color:var(--accent-ink);font-weight:700;text-align:center;padding:12px;border-radius:11px;cursor:pointer;margin-top:auto}
+
+  /* build log / decision ledger modal */
+  #logmodal{position:absolute;inset:0;background:rgba(4,7,9,.97);z-index:30;overflow-y:auto;padding:40px 24px;display:none}
+  #logmodal h1{text-align:center;font-size:24px;margin:0 0 4px}
+  #logmodal .lead{text-align:center;color:var(--muted);margin:0 auto 24px;max-width:520px;font-size:13px;line-height:1.6}
+  #logmodal .close{position:absolute;top:20px;right:24px;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
+  #logmodal .close:hover{color:var(--text)}
+  .declist{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .dec{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+  .dec .dh{display:flex;align-items:baseline;gap:10px;font-size:16px;font-weight:700}
+  .dec .dn{color:var(--muted);font-size:12px;font-weight:700}
+  .dec .dd{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:13px;line-height:1.7}
+  .dec .dcons{margin-top:10px;font-size:13px;line-height:1.6}
+  .dec .dcons b{color:var(--accent-text)}
+  .dec .drow{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .dec .lbtn{font-size:13px;font-weight:600;padding:8px 13px;border-radius:10px;cursor:pointer;border:1px solid var(--line);color:var(--muted)}
+  .dec .lbtn:hover{border-color:var(--accent);color:var(--text)}
+  .dec .lbtn.mind{color:var(--accent-text)}
+  .dec .dexpl{margin-top:12px;background:var(--panel-2);border-radius:12px;padding:13px 15px;color:var(--muted);font-size:13px;line-height:1.7}
 </style>
 </head>
 <body>
@@ -131,8 +150,9 @@
 <div id="shell">
   <header>
     <div class="mark">⛩️</div>
-    <div><span class="title">The App Builder</span> <span class="sub">preview build</span></div>
+    <div><span class="title">Appgnostic</span> <span class="sub">any app you can describe</span></div>
     <div class="spacer"></div>
+    <div class="hbtn" id="logbtn" style="display:none">📋 Build log <span id="logn">0</span></div>
     <div class="hbtn disabled" id="undo">↺ Undo</div>
     <div class="hbtn disabled" id="redo">↻ Redo</div>
     <div class="hbtn" id="restart">Start over</div>
@@ -156,21 +176,28 @@
   </div>
 
   <div id="gallery"></div>
+
+  <div id="logmodal">
+    <div class="close" id="logclose">Close</div>
+    <h1>Your build log</h1>
+    <p class="lead">Every decision you've made, what it does, and what it means — so nothing's a mystery later. Changed your mind about any of them? One click takes you right back to edit it.</p>
+    <div class="declist" id="declist"></div>
+  </div>
 </div>
 
 <script type="module">
 import { listStarters, getStarter } from '../src/intake/starters.mjs';
 import { reviewProposal } from '../src/intake/intake.mjs';
 import { buildPreview, renderPreviewHTML } from '../src/intake/preview.mjs';
-import { narrateProposal, greeting, checkpoint, suggestNext } from '../src/intake/narrator.mjs';
+import { narrateProposal, greeting, checkpoint, suggestNext, decisionRecord, explainRecord } from '../src/intake/narrator.mjs';
 import { themeProposals } from '../src/intake/themes.mjs';
 
 const $ = s => document.querySelector(s);
 const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewLabel'),
       timeline = $('#timeline'), tlabel = $('#tlabel'), reassure = $('#reassure'),
-      undoBtn = $('#undo'), redoBtn = $('#redo');
+      undoBtn = $('#undo'), redoBtn = $('#redo'), logbtn = $('#logbtn');
 const co = 'Your co-builder';
-let spec = null, history = [], cursor = -1, pending = false, buildsSinceCheckpoint = 0, lookChosen = false;
+let spec = null, history = [], cursor = -1, pending = false, buildsSinceCheckpoint = 0, lookChosen = false, ledger = [];
 
 const clone = x => structuredClone(x);
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
@@ -200,6 +227,39 @@ function goTo(i) {
 undoBtn.addEventListener('click', () => goTo(cursor - 1));
 redoBtn.addEventListener('click', () => goTo(cursor + 1));
 
+// ── build log / decision ledger ───────────────────────────────────────────────
+function updateLogBtn() { logbtn.style.display = ledger.length ? 'block' : 'none'; $('#logn').textContent = ledger.length; }
+function closeLog() { $('#logmodal').style.display = 'none'; }
+function openLog() { renderLog(); $('#logmodal').style.display = 'block'; }
+function renderLog() {
+  const dl = $('#declist');
+  if (!ledger.length) { dl.innerHTML = '<p class="lead">No decisions yet — they will appear here as you build.</p>'; return; }
+  dl.innerHTML = ledger.map((rec, idx) => `<div class="dec" data-idx="${idx}">
+      <div class="dh"><span class="dn">#${idx + 1}</span> ${esc(rec.title)}</div>
+      ${rec.details.length ? `<ul class="dd">${rec.details.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+      ${rec.consequence ? `<div class="dcons"><b>What this means:</b> ${esc(rec.consequence)}</div>` : ''}
+      <div class="drow"><div class="lbtn" data-explain>Explain in plain English</div><div class="lbtn mind" data-mind>↺ I've changed my mind about this</div></div>
+      <div class="dexpl" hidden></div>
+    </div>`).reverse().join('');
+  dl.querySelectorAll('.dec').forEach(card => {
+    const rec = ledger[+card.dataset.idx];
+    card.querySelector('[data-explain]').addEventListener('click', () => {
+      const box = card.querySelector('.dexpl');
+      if (box.hidden) { box.textContent = explainRecord(rec); box.hidden = false; } else box.hidden = true;
+    });
+    card.querySelector('[data-mind]').addEventListener('click', () => reviseDecision(rec));
+  });
+}
+function reviseDecision(rec) {
+  closeLog();
+  cursor = Math.max(0, rec.histIndex - 1); spec = clone(history[cursor].spec);
+  renderPreview(buildPreview(spec)); renderTimeline(); updateUndoRedo(); liveLabel();
+  bubble(`<div class="co">${co}</div><div class="sum">Let's revisit <b>${esc(rec.title)}</b> — I've taken you back to just before it. Change it however you like; nothing's lost.</div>`);
+  if (rec.kind === 'look') askLook(); else offerSuggestions();
+}
+logbtn.addEventListener('click', openLog);
+$('#logclose').addEventListener('click', closeLog);
+
 // ── gallery ──────────────────────────────────────────────────────────────────
 function showGallery() {
   const cards = listStarters();
@@ -220,7 +280,8 @@ function showGallery() {
 }
 function pickStarter(id) {
   spec = getStarter(id); $('#gallery').style.display = 'none'; log.innerHTML = '';
-  history = []; cursor = -1; pending = false; buildsSinceCheckpoint = 0; lookChosen = false;
+  history = []; cursor = -1; pending = false; buildsSinceCheckpoint = 0; lookChosen = false; ledger = [];
+  closeLog(); updateLogBtn();
   const g = greeting(spec);
   bubble(`<div class="co">${co}</div><h3>${esc(g.headline)}</h3><div class="sum">${esc(g.summary)}</div>`);
   pushHistory(((spec.app && spec.app.name) || 'Start') + ' · start');
@@ -289,9 +350,13 @@ function proposeReview(ops, title, opts = {}) {
 }
 function commit(ops, el, title, opts = {}) {
   const review = reviewProposal(spec, ops); if (!review.ok) { pending = false; return; }
+  const rec = decisionRecord({ title, review });           // capture the decision BEFORE advancing
   spec = review.candidate; pending = false;
   el.querySelector('.actions').remove(); const u = el.querySelector('.undoline'); if (u) u.remove();
   pushHistory(title || 'Change'); renderPreview(buildPreview(spec)); liveLabel();
+  ledger = ledger.filter(e => e.histIndex < cursor);       // if we branched, drop the undone future decisions
+  ledger.push({ ...rec, histIndex: cursor, kind: opts.isLook ? 'look' : 'feature' });
+  updateLogBtn();
   bubble(`<div class="co">${co}</div><div class="sum">Done — it's live in your preview. (Rewind anytime from the timeline.)</div>`);
   if (opts.isLook && !lookChosen) {
     lookChosen = true;

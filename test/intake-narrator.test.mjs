@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { narrateProposal, checkpoint, greeting, suggestNext, renderNarration } from '../src/intake/narrator.mjs';
+import { narrateProposal, checkpoint, greeting, suggestNext, renderNarration, consequenceOf, decisionRecord, explainRecord } from '../src/intake/narrator.mjs';
 import { reviewProposal } from '../src/intake/intake.mjs';
 import { getStarter } from '../src/intake/starters.mjs';
 
@@ -63,6 +63,29 @@ test('suggestions are capped and jargon-free', () => {
     assert.ok(x.label && x.why && Array.isArray(x.ops) && x.ops.length);
     assert.doesNotMatch(x.label + x.why, /module|dataModel|cleanSpec|mechanic|Spec/);
   });
+});
+
+test('consequenceOf names the real effect of a change; empty for a refusal', () => {
+  const levels = reviewProposal(getStarter('knowledgebase'), suggestNext(getStarter('knowledgebase')).find(s => s.id === 'add-levels').ops);
+  assert.match(consequenceOf(levels), /climb levels/i);
+  const bad = reviewProposal(dojo, [{ target: 'modules', op: 'add', value: { type: 'nope', config: {} } }]);
+  assert.equal(consequenceOf(bad), '');
+});
+
+test('decisionRecord captures title, details, and consequence for the ledger', () => {
+  const review = reviewProposal(getStarter('knowledgebase'), [{ target: 'pages', op: 'add', value: { id: 'about', title: 'About', audience: { who: 'members' }, blocks: [] } }]);
+  const rec = decisionRecord({ title: 'Add an About page', review });
+  assert.equal(rec.title, 'Add an About page');
+  assert.ok(rec.details.some(d => /About/.test(d)));
+  assert.match(rec.consequence, /page/i);
+});
+
+test('explainRecord gives a plain-English read that always ends reversible + jargon-free', () => {
+  const rec = { title: 'The Bold & Vibrant look', details: ['Changed the accent colour'], consequence: 'Changes how your whole app looks for every member.' };
+  const txt = explainRecord(rec);
+  assert.match(txt, /Bold & Vibrant/);
+  assert.match(txt, /reversible|rewind/i);
+  assert.doesNotMatch(txt, /theme|token|module|dataModel|Spec/);
 });
 
 test('renderNarration produces readable text', () => {

@@ -1,9 +1,9 @@
 {
-  "name": "the-app-builder",
+  "name": "appgnostic",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Clone-first, AI-driven app-builder platform (seeded from the Dojo shell).",
+  "description": "Appgnostic — clone-first, AI-driven app-builder platform (any app you can describe; seeded from the Dojo shell).",
   "scripts": {
     "test": "node --test"
   },

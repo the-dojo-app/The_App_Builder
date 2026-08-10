@@ -1,7 +1,9 @@
-# The App Builder — assistant context
+# Appgnostic — assistant context
 
-**Read this first.** A **clone-first, AI-driven app-builder platform**. Private repo:
-`github.com/the-dojo-app/The_App_Builder`. Local: `~/The_App_Builder`. Working name; rebrandable.
+**Read this first.** **Appgnostic** — a **clone-first, AI-driven app-builder platform** ("any app you
+can describe"; name locked 2026-08-10, chosen for the app-agnostic thesis — build any app on one shell;
+heads-up: silent-g homophone of unrelated "Appnostic" IoT/consulting firms). Private repo:
+`github.com/the-dojo-app/The_App_Builder` (repo/dir still carry the old working name). Local: `~/The_App_Builder`.
 
 This was extracted from **"The Dojo App"** (`~/The Dojo App`), which becomes **reference app #1**.
 The Dojo was shelved 2026-08-10 to build its underlying builder as a separate product.

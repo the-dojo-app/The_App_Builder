@@ -126,6 +126,47 @@ export function suggestNext(spec, catalog) {
   return out.slice(0, 3);
 }
 
+// ── the accountability layer: consequences, the decision ledger, and plain-English explainers ─────
+// (docs/EXPERIENCE.md; Will 2026-08-10). Every major decision is recorded with its title, details,
+// AND its consequences — to keep the owner honest — and can be revisited ("I've changed my mind").
+
+// What a change MEANS/affects, in plain domain language. Picks the most significant consequence.
+export function consequenceOf(review) {
+  if (!isObj(review) || !review.ok) return '';
+  const types = new Set((review.previewChanges || []).map(e => e.type));
+  if (types.has('levels-added')) return 'Members will now climb levels — a visible ladder of progress. It adds a Levels area to your app.';
+  if (types.has('levels-removed')) return 'Members will no longer have levels to climb; anyone partway through loses that progress view.';
+  if (types.has('library-added')) return 'Adds a library your members can browse, and a place for you to publish content.';
+  if (types.has('library-removed')) return 'Removes the library and the home your content lived in.';
+  if (types.has('level-count')) return 'Changes how many levels members climb — and their sense of how far they have to go.';
+  if (types.has('role-added')) return 'Adds a new kind of user, with its own level of access to your app.';
+  if (types.has('role-removed')) return 'Removes a kind of user — anyone with that role loses their access.';
+  if (types.has('page-added')) return 'Adds a new page to your app’s menu for members to visit.';
+  if (types.has('page-removed')) return 'Removes a page — members can no longer visit it.';
+  if (types.has('color-changed')) return 'Changes how your whole app looks for every member. Purely visual — your content and setup are untouched.';
+  return 'Updates your app’s setup. Everything else stays exactly as it was.';
+}
+
+// A ledger record for a committed decision: title + the concrete details + the consequence.
+export function decisionRecord({ title, review }) {
+  return {
+    title: title || 'Change',
+    details: ((isObj(review) && review.previewChanges) || []).map(e => e.label),
+    consequence: consequenceOf(review)
+  };
+}
+
+// "Explain this to me in plain English" — a deeper, jargon-free read of a ledger record, always
+// ending on the reassurance that it's reversible. Accepts a stored record ({title,details,consequence}).
+export function explainRecord(rec) {
+  const r = isObj(rec) ? rec : {};
+  const parts = [`“${r.title || 'This change'}” — here's what it actually does.`];
+  if (Array.isArray(r.details) && r.details.length) parts.push('In plain terms: ' + r.details.join('; ') + '.');
+  if (r.consequence) parts.push(r.consequence);
+  parts.push('And remember — this is fully reversible: you can rewind to just before this change anytime you like.');
+  return parts.join(' ');
+}
+
 // Plain-text rendering of any narration object — for logs, tests, and a no-frills fallback.
 export function renderNarration(n) {
   if (!isObj(n)) return '';
