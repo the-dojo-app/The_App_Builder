@@ -120,7 +120,10 @@ Tagged **[v1]** (first release), **[next]**, **[later]**. Mechanism in *italics*
    resulting app frame) + `previewChanges` (typed animated-diff events) alongside the plan, both
    derived from the cleaned/gated specs. The intake can *show* every proposal, not just describe it.
 3. The narrator copy layer (describeProposal → warm voice) + checkpoints.
-4. The starter-Spec gallery + "two roads" cards.
+4. **[gallery done 2026-08-10]** The starter-Spec gallery (`src/intake/starters.mjs`: Academy,
+   Coaching Program, Knowledge Base — each validates clean, each leans on a different part of the
+   library) + `listStarters()`/`getStarter()`. Remaining: the "two roads" *card UI* in the builder
+   chrome, and more starters over time.
 5. Time machine (once history is live on real infra).
 
 ## 6. Open questions
