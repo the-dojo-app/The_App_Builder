@@ -119,11 +119,27 @@
   .card .start{background:var(--accent);color:var(--accent-ink);font-weight:700;text-align:center;padding:12px;border-radius:11px;cursor:pointer;margin-top:auto}
 
   /* build log / decision ledger modal */
-  #logmodal{position:absolute;inset:0;background:rgba(4,7,9,.97);z-index:30;overflow-y:auto;padding:40px 24px;display:none}
-  #logmodal h1{text-align:center;font-size:24px;margin:0 0 4px}
-  #logmodal .lead{text-align:center;color:var(--muted);margin:0 auto 24px;max-width:520px;font-size:13px;line-height:1.6}
-  #logmodal .close{position:absolute;top:20px;right:24px;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
-  #logmodal .close:hover{color:var(--text)}
+  #logmodal, #costmodal{position:absolute;inset:0;background:rgba(4,7,9,.97);z-index:30;overflow-y:auto;padding:40px 24px;display:none}
+  #logmodal h1, #costmodal h1{text-align:center;font-size:24px;margin:0 0 4px}
+  #logmodal .lead, #costmodal .lead{text-align:center;color:var(--muted);margin:0 auto 24px;max-width:520px;font-size:13px;line-height:1.6}
+  #logmodal .close, #costmodal .close{position:absolute;top:20px;right:24px;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
+  #logmodal .close:hover, #costmodal .close:hover{color:var(--text)}
+
+  /* cost calculator */
+  .costwrap{max-width:600px;margin:0 auto}
+  .ctrls{display:flex;gap:20px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+  .ctrl{flex:1;min-width:200px}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px}
+  .ctrl label b{color:var(--accent-text)}
+  .ctrl input[type=range]{width:100%;accent-color:var(--accent)}
+  .costsum{background:rgba(47,182,140,.08);border:1px solid var(--accent);border-radius:14px;padding:15px 17px;font-size:14px;line-height:1.65;margin-bottom:18px}
+  .costsec{color:#6b7a76;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:4px 0 6px}
+  .costline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .costline .cl-note{color:var(--muted);font-size:12px;margin-top:2px}
+  .costline .cl-amt{font-weight:700;white-space:nowrap}
+  .costtot{display:flex;justify-content:space-between;font-weight:700;font-size:15px;margin-top:14px}
+  .costtot .r{color:var(--accent-text)}
+  .costdis{color:#6b7a76;font-size:12px;line-height:1.55;margin-top:18px}
   .declist{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
   .dec{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
   .dec .dh{display:flex;align-items:baseline;gap:10px;font-size:16px;font-weight:700}
@@ -152,6 +168,7 @@
     <div class="mark">⛩️</div>
     <div><span class="title">Appgnostic</span> <span class="sub">any app you can describe</span></div>
     <div class="spacer"></div>
+    <div class="hbtn" id="costbtn" style="display:none">💰 Costs</div>
     <div class="hbtn" id="logbtn" style="display:none">📋 Build log <span id="logn">0</span></div>
     <div class="hbtn disabled" id="undo">↺ Undo</div>
     <div class="hbtn disabled" id="redo">↻ Redo</div>
@@ -183,6 +200,19 @@
     <p class="lead">Every decision you've made, what it does, and what it means — so nothing's a mystery later. Changed your mind about any of them? One click takes you right back to edit it.</p>
     <div class="declist" id="declist"></div>
   </div>
+
+  <div id="costmodal">
+    <div class="close" id="costclose">Close</div>
+    <h1>What this will cost</h1>
+    <p class="lead">An honest ballpark — and it runs on your own accounts (bring your own key), so this is your bill and we take no cut. Slide to match the size you expect.</p>
+    <div class="costwrap">
+      <div class="ctrls">
+        <div class="ctrl"><label>Members <b id="cmv">100</b></label><input type="range" id="cmembers" min="10" max="10000" step="10" value="100"></div>
+        <div class="ctrl"><label>Things each does / month <b id="cav">20</b></label><input type="range" id="cactivity" min="1" max="100" step="1" value="20"></div>
+      </div>
+      <div id="costout"></div>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -191,13 +221,15 @@ import { reviewProposal } from '../src/intake/intake.mjs';
 import { buildPreview, renderPreviewHTML } from '../src/intake/preview.mjs';
 import { narrateProposal, greeting, checkpoint, suggestNext, decisionRecord, explainRecord } from '../src/intake/narrator.mjs';
 import { themeProposals } from '../src/intake/themes.mjs';
+import { estimateCost, summarizeCost } from '../src/intake/cost.mjs';
 
 const $ = s => document.querySelector(s);
 const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewLabel'),
       timeline = $('#timeline'), tlabel = $('#tlabel'), reassure = $('#reassure'),
-      undoBtn = $('#undo'), redoBtn = $('#redo'), logbtn = $('#logbtn');
+      undoBtn = $('#undo'), redoBtn = $('#redo'), logbtn = $('#logbtn'), costbtn = $('#costbtn');
 const co = 'Your co-builder';
 let spec = null, history = [], cursor = -1, pending = false, buildsSinceCheckpoint = 0, lookChosen = false, ledger = [];
+const costInputs = { members: 100, activityPerMonth: 20 };
 
 const clone = x => structuredClone(x);
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
@@ -260,8 +292,33 @@ function reviseDecision(rec) {
 logbtn.addEventListener('click', openLog);
 $('#logclose').addEventListener('click', closeLog);
 
+// ── cost calculator ───────────────────────────────────────────────────────────
+const money = n => '$' + Number(n).toFixed(2);
+function openCosts() { renderCostOut(); $('#costmodal').style.display = 'block'; }
+function closeCosts() { $('#costmodal').style.display = 'none'; }
+function renderCostOut() {
+  if (!spec) return;
+  const est = estimateCost(spec, costInputs), m = est.monthly;
+  const lines = m.lines.map(l => `<div class="costline"><span>${esc(l.label)}<div class="cl-note">${esc(l.note)}</div></span><span class="cl-amt">${l.amount ? money(l.amount) : 'free'}</span></div>`).join('');
+  const one = est.oneTime.lines.map(l => `<div class="costline"><span>${esc(l.label)}<div class="cl-note">${esc(l.note)}</div></span><span class="cl-amt">${money(l.low)} – ${money(l.high)}</span></div>`).join('');
+  $('#costout').innerHTML = `
+    <div class="costsum">${esc(summarizeCost(est))}</div>
+    <div class="costsec">Every month, to run it</div>
+    ${lines}
+    <div class="costtot"><span>Estimated monthly</span><span class="r">${money(m.low)} – ${money(m.high)}${m.freeTier ? ' · often free' : ''}</span></div>
+    <div class="costsec" style="margin-top:20px">One-time, to build it</div>
+    ${one}
+    <div class="costtot"><span>Estimated one-time</span><span class="r">${money(est.oneTime.low)} – ${money(est.oneTime.high)}</span></div>
+    <div class="costdis">${esc(est.disclaimer)} ${esc(est.assumptions.pricingNote)}</div>`;
+}
+$('#cmembers').addEventListener('input', e => { costInputs.members = +e.target.value; $('#cmv').textContent = (+e.target.value).toLocaleString(); renderCostOut(); });
+$('#cactivity').addEventListener('input', e => { costInputs.activityPerMonth = +e.target.value; $('#cav').textContent = e.target.value; renderCostOut(); });
+costbtn.addEventListener('click', openCosts);
+$('#costclose').addEventListener('click', closeCosts);
+
 // ── gallery ──────────────────────────────────────────────────────────────────
 function showGallery() {
+  costbtn.style.display = 'none'; logbtn.style.display = 'none';
   const cards = listStarters();
   const g = $('#gallery'); g.style.display = 'block';
   g.innerHTML = `<h1>Pick a starting point</h1>
@@ -281,7 +338,7 @@ function showGallery() {
 function pickStarter(id) {
   spec = getStarter(id); $('#gallery').style.display = 'none'; log.innerHTML = '';
   history = []; cursor = -1; pending = false; buildsSinceCheckpoint = 0; lookChosen = false; ledger = [];
-  closeLog(); updateLogBtn();
+  closeLog(); closeCosts(); updateLogBtn(); costbtn.style.display = 'block';
   const g = greeting(spec);
   bubble(`<div class="co">${co}</div><h3>${esc(g.headline)}</h3><div class="sum">${esc(g.summary)}</div>`);
   pushHistory(((spec.app && spec.app.name) || 'Start') + ' · start');
