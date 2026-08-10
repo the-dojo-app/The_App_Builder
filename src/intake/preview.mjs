@@ -166,7 +166,8 @@ export function renderPreviewHTML(model) {
     --text:${co['text-primary']}; --muted:${co['text-secondary']}; --accent:${co['accent']}; --accent-text:${co['accent-text']};
   }
   *{box-sizing:border-box} body{margin:0;background:#05080a;color:var(--text);
-    font-family:'Work Sans',system-ui,sans-serif;display:flex;justify-content:center;padding:24px;min-height:100vh}
+    font-family:'Roboto',system-ui,sans-serif;display:flex;justify-content:center;padding:24px;min-height:100vh}
+  .app-name,.card-h{font-family:'Work Sans',system-ui,sans-serif}
   .frame{width:390px;background:var(--page);border-radius:32px;overflow:hidden;
     box-shadow:0 24px 60px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.06)}
   .top{background:linear-gradient(160deg,var(--sunken),var(--page));padding:26px 22px 18px}

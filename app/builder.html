@@ -9,14 +9,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Appgnostic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* Dojo design system — teal/dark palette (matches src/intake/preview.mjs PALETTE), Work Sans + Roboto */
   :root{
-    --bg:#070b0d; --panel:#0f1417; --panel-2:#131a1e; --line:rgba(255,255,255,.08);
-    --text:#EAF1EF; --muted:#93a29d; --accent:#2FB68C; --accent-text:#8CE9C8; --accent-ink:#04110f;
+    --bg:#0A1116; --panel:#171E24; --panel-2:#10171C; --line:rgba(255,255,255,.08);
+    --text:#F2F6F5; --muted:#9AA6A4; --accent:#109F93; --accent-text:#6FE3D6; --accent-ink:#04110f;
+    --shadow-raised:0 10px 30px rgba(0,0,0,.35);
+    --font-heading:'Work Sans',system-ui,-apple-system,sans-serif;
+    --font-body:'Roboto',system-ui,-apple-system,sans-serif;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
-  body{background:var(--bg);color:var(--text);font-family:'Work Sans',system-ui,-apple-system,sans-serif}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-body)}
+  h1,h3,.title,.app-name,.card .name,.dec .dh,.costsum{font-family:var(--font-heading)}
 
   /* ── small-screen gate (phones) ─────────────────────────────────────────── */
   #gate{display:none;position:fixed;inset:0;background:var(--bg);z-index:50;
@@ -64,7 +72,7 @@
 
   /* bubbles */
   .bubble{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 16px 4px;
-    padding:15px 17px;max-width:560px;animation:rise .22s ease}
+    padding:15px 17px;max-width:560px;animation:rise .22s ease;box-shadow:var(--shadow-raised)}
   @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .bubble.you{align-self:flex-end;border-radius:16px 16px 4px 16px;background:#14202a}
   .co{color:var(--accent-text);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
@@ -109,7 +117,7 @@
   #gallery h1{text-align:center;font-size:26px;margin:0 0 6px}
   #gallery .lead{text-align:center;color:var(--muted);margin:0 auto 30px;max-width:520px;font-size:14px;line-height:1.6}
   .grid{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
-  .card{width:360px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column}
+  .card{width:360px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;box-shadow:var(--shadow-raised)}
   .card .name{font-size:19px;font-weight:700}
   .card .tag{color:var(--accent-text);font-size:13px;font-weight:600;margin-top:2px}
   .card .who{color:#cdd6d3;font-size:13px;margin-top:12px;font-weight:600}
