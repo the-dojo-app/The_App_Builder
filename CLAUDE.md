@@ -59,7 +59,14 @@ src/
   shell/              extracted platform code: theme-validator, rules-gen, block-tree, data-model, auth
   modules/            capability modules: content-library, content-render, content-completion,
                       progression, rules, mechanics, progression-engine, rbac
-test/                 node --test suites (currently 69 across 11 files)
+  intake/             the AI intake (docs/AI_INTAKE.md) + experience layer (docs/EXPERIENCE.md):
+                      catalog (grounding), diff (bounded Spec-diff), intake (reviewProposal GATE +
+                      runIntake model-seam), preview (buildPreview/previewDiff/renderPreviewHTML),
+                      narrator (co-builder voice + suggestNext), starters (the gallery)
+app/
+  builder.html        the DESKTOP builder chrome — imports src/intake/*.mjs directly in-browser
+                      (zero build step); runs the whole intake loop client-side. Serve over http.
+test/                 node --test suites (108 across 17 files)
 ```
 
 ## 5. Current status — Phase 0 (engine feature-complete in isolation)

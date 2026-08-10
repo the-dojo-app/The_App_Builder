@@ -129,6 +129,29 @@ Tagged **[v1]** (first release), **[next]**, **[later]**. Mechanism in *italics*
    chrome, and more starters over time.
 5. Time machine (once history is live on real infra).
 
+## 5b. The builder chrome (`app/builder.html`) — SHIPPED 2026-08-10
+
+The first real, clickable builder UI. **It imports the pure engine modules directly in the browser
+(`<script type="module">` → `../src/intake/*.mjs`) — zero build step, true to clone-first.** The whole
+intake loop runs client-side; only the two deliberate seams are stubbed (the LLM `propose` call and
+the Firebase apply). Verified working end to end in-browser:
+- **Starter gallery** — `listStarters()` cards, each with a LIVE mini-preview iframe of the real app.
+- **Co-builder chat** — `greeting` → plain-English summary; `suggestNext` chips (correctly scoped:
+  Coaching was offered neither levels nor a library because it has both); pick a chip → `reviewProposal`
+  → narration + **ghost preview** ("PREVIEW OF THIS CHANGE — NOT SAVED YET") → **Build it** commits
+  and advances the working spec; every 3 builds → a `checkpoint`.
+- **Live preview** — a phone frame (`renderPreviewHTML` via iframe `srcdoc`) reflecting the current
+  (or ghost) spec.
+- **Honest boundary** — free-text does a local intent-match to the ready suggestions; anything else
+  gets the honest "connect your key" note, never a fake.
+- **Small-screen gate** — `@media (max-width:900px)` swaps the whole builder for the "use a bigger
+  screen" card (§1b), verified by resizing.
+
+**Run it:** serve the repo root over http (ES-module imports need http, not file://) and open
+`/app/builder.html` — e.g. `python3 -m http.server 8777` then `http://localhost:8777/app/builder.html`.
+(`.claude/launch.json` has a `builder` config for editors that read this repo's own launch file.)
+**Remaining chrome:** hover-to-preview on chips, the time-machine scrubber, and richer edit surfaces.
+
 ## 6. Open questions
 
 1. Preview fidelity: a *symbolic* frame (nav + feature cards + real theme) for v1, or a

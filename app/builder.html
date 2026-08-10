@@ -1,0 +1,272 @@
+<!doctype html>
+<!-- The App Builder — desktop builder chrome. Runs the intake loop CLIENT-SIDE by importing the pure
+     engine modules directly (zero build step, true to clone-first). The two deliberate seams — the LLM
+     `propose` call and the Firebase apply — are stubbed here; suggestion chips drive the loop without them.
+     Desktop/iPad only: a small-screen gate covers phones (docs/EXPERIENCE.md §1b). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The App Builder</title>
+<style>
+  :root{
+    --bg:#070b0d; --panel:#0f1417; --panel-2:#131a1e; --line:rgba(255,255,255,.08);
+    --text:#EAF1EF; --muted:#93a29d; --accent:#2FB68C; --accent-text:#8CE9C8; --accent-ink:#04110f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--text);font-family:'Work Sans',system-ui,-apple-system,sans-serif}
+
+  /* ── small-screen gate (phones) ─────────────────────────────────────────── */
+  #gate{display:none;position:fixed;inset:0;background:var(--bg);z-index:50;
+    flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px}
+  #gate .torii{font-size:44px;margin-bottom:14px}
+  #gate h1{font-size:22px;margin:0 0 12px}
+  #gate p{color:var(--muted);max-width:340px;line-height:1.6;margin:0 0 18px}
+  #gate .note{color:var(--accent-text);font-size:13px}
+  @media (max-width:900px){ #gate{display:flex} #shell{display:none} }
+
+  /* ── shell ──────────────────────────────────────────────────────────────── */
+  #shell{display:flex;flex-direction:column;height:100%}
+  header{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line)}
+  header .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(150deg,var(--accent),#1c7d63);
+    display:flex;align-items:center;justify-content:center;font-size:15px}
+  header .title{font-weight:700;letter-spacing:-.01em}
+  header .sub{color:var(--muted);font-size:12px;margin-left:2px}
+  header .spacer{flex:1}
+  header .restart{color:var(--muted);font-size:13px;cursor:pointer;border:1px solid var(--line);
+    padding:7px 13px;border-radius:9px}
+  header .restart:hover{color:var(--text)}
+
+  .cols{flex:1;display:flex;min-height:0}
+  .chat{flex:1;min-width:420px;display:flex;flex-direction:column;min-height:0}
+  .log{flex:1;overflow-y:auto;padding:24px 26px;display:flex;flex-direction:column;gap:14px}
+  .side{width:452px;flex:none;border-left:1px solid var(--line);background:#05080a;
+    display:flex;flex-direction:column;align-items:center;padding:26px 20px;overflow-y:auto}
+  .side .label{color:#6b7a76;font-size:11px;text-transform:uppercase;letter-spacing:.09em;margin-bottom:14px}
+  .side .pending{color:var(--accent-text)}
+  iframe.frame{width:390px;height:720px;border:0;border-radius:30px;background:#0F171D;
+    box-shadow:0 24px 60px rgba(0,0,0,.55);flex:none}
+
+  /* bubbles */
+  .bubble{background:var(--panel);border:1px solid var(--line);border-radius:16px 16px 16px 4px;
+    padding:15px 17px;max-width:560px;animation:rise .22s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .bubble.you{align-self:flex-end;border-radius:16px 16px 4px 16px;background:#14202a}
+  .co{color:var(--accent-text);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+  .bubble h3{margin:0 0 6px;font-size:16px;font-weight:700}
+  .sum{color:var(--muted);font-size:13px;line-height:1.7;white-space:pre-line}
+  ul.changes{margin:8px 0 4px;padding-left:20px;line-height:1.8;font-size:14px}
+  .milestone{color:var(--accent-text);font-weight:600;font-size:14px;margin:6px 0 0}
+  .prompt{margin-top:10px;font-weight:600;font-size:14px}
+  .err{color:#ff9a8a}
+
+  .chips{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+  .chip{border:1px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--accent);background:rgba(47,182,140,.08)}
+  .chip b{display:block;font-size:14px}
+  .chip span{color:var(--muted);font-size:12px}
+
+  .actions{display:flex;gap:10px;margin-top:12px}
+  .btn{font-weight:700;font-size:14px;padding:10px 18px;border-radius:11px;cursor:pointer;border:1px solid var(--line)}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  .btn.ghost{color:var(--muted);background:transparent}
+  .btn.ghost:hover{color:var(--text)}
+
+  .composer{border-top:1px solid var(--line);padding:14px 22px;display:flex;gap:10px;align-items:center}
+  .composer input{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    color:var(--text);font-size:14px;padding:12px 14px;font-family:inherit}
+  .composer input::placeholder{color:#5f6d69}
+  .composer .send{background:var(--accent);color:var(--accent-ink);font-weight:700;border-radius:12px;
+    padding:12px 18px;cursor:pointer}
+
+  /* gallery overlay */
+  #gallery{position:absolute;inset:0;background:rgba(4,7,9,.96);z-index:20;overflow-y:auto;padding:40px 24px}
+  #gallery h1{text-align:center;font-size:26px;margin:0 0 6px}
+  #gallery .lead{text-align:center;color:var(--muted);margin:0 auto 30px;max-width:520px;font-size:14px;line-height:1.6}
+  .grid{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .card{width:360px;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column}
+  .card .name{font-size:19px;font-weight:700}
+  .card .tag{color:var(--accent-text);font-size:13px;font-weight:600;margin-top:2px}
+  .card .who{color:#cdd6d3;font-size:13px;margin-top:12px;font-weight:600}
+  .card p{color:var(--muted);font-size:13px;line-height:1.6;margin:8px 0 14px}
+  .card .mini{height:200px;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:14px;background:#0F171D;position:relative}
+  .card .mini iframe{position:absolute;top:0;left:50%;width:390px;height:720px;border:0;transform:translateX(-50%) scale(.5);transform-origin:top center}
+  .card .start{background:var(--accent);color:var(--accent-ink);font-weight:700;text-align:center;padding:12px;border-radius:11px;cursor:pointer;margin-top:auto}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="torii">⛩️</div>
+  <h1>Let's build on a bigger screen</h1>
+  <p>The builder needs room to work — open this on your computer or an iPad. Your finished app will work great on phones; that's what your members will use.</p>
+  <div class="note">Tip: email yourself the link to pick up on a laptop.</div>
+</div>
+
+<div id="shell">
+  <header>
+    <div class="mark">⛩️</div>
+    <div><span class="title">The App Builder</span> <span class="sub">preview build</span></div>
+    <div class="spacer"></div>
+    <div class="restart" id="restart">Start over</div>
+  </header>
+
+  <div class="cols">
+    <div class="chat">
+      <div class="log" id="log"></div>
+      <div class="composer">
+        <input id="ask" placeholder="Tell me what to add or change…" autocomplete="off">
+        <div class="send" id="send">Send</div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="label" id="previewLabel">Live preview — what your members see</div>
+      <iframe class="frame" id="preview" title="app preview"></iframe>
+    </div>
+  </div>
+
+  <div id="gallery"></div>
+</div>
+
+<script type="module">
+import { listStarters, getStarter } from '../src/intake/starters.mjs';
+import { reviewProposal } from '../src/intake/intake.mjs';
+import { buildPreview, renderPreviewHTML } from '../src/intake/preview.mjs';
+import { narrateProposal, greeting, checkpoint, suggestNext } from '../src/intake/narrator.mjs';
+
+const $ = s => document.querySelector(s);
+const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewLabel');
+let spec = null;
+let buildsSinceCheckpoint = 0;
+
+// ── helpers ─────────────────────────────────────────────────────────────────
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+function bubble(html, cls = '') {
+  const el = document.createElement('div');
+  el.className = 'bubble ' + cls;
+  el.innerHTML = html;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+const co = 'Your co-builder';
+function renderPreview(model) { previewFrame.srcdoc = renderPreviewHTML(model); }
+
+// ── gallery ──────────────────────────────────────────────────────────────────
+function showGallery() {
+  const cards = listStarters();
+  const g = $('#gallery');
+  g.style.display = 'block';
+  g.innerHTML = `<h1>Pick a starting point</h1>
+    <p class="lead">Each is a real, working app you can make your own. Nothing here can be built broken — they all pass the same safety checks.</p>
+    <div class="grid">${cards.map(c => `
+      <div class="card">
+        <div class="name">${esc(c.name)}</div>
+        <div class="tag">${esc(c.tagline)}</div>
+        <div class="mini"><iframe data-id="${c.id}" title="${esc(c.name)} preview"></iframe></div>
+        <div class="who">${esc(c.forWho)}</div>
+        <p>${esc(c.pitch)}</p>
+        <div class="start" data-start="${c.id}">Start with ${esc(c.name)} ›</div>
+      </div>`).join('')}</div>`;
+  cards.forEach(c => { g.querySelector(`iframe[data-id="${c.id}"]`).srcdoc = renderPreviewHTML(c.preview); });
+  g.querySelectorAll('[data-start]').forEach(b => b.addEventListener('click', () => pickStarter(b.dataset.start)));
+}
+
+function pickStarter(id) {
+  spec = getStarter(id);
+  $('#gallery').style.display = 'none';
+  log.innerHTML = '';
+  buildsSinceCheckpoint = 0;
+  const g = greeting(spec);
+  bubble(`<div class="co">${co}</div><h3>${esc(g.headline)}</h3><div class="sum">${esc(g.summary)}</div><div class="prompt">${esc(g.prompt)}</div>`);
+  renderPreview(buildPreview(spec));
+  offerSuggestions();
+}
+
+// ── suggestions ───────────────────────────────────────────────────────────────
+function offerSuggestions() {
+  const sugg = suggestNext(spec);
+  if (!sugg.length) {
+    bubble(`<div class="co">${co}</div><div class="sum">Looking good. Tell me anything else you'd like to change.</div>`);
+    return;
+  }
+  const chips = sugg.map((s, i) => `<div class="chip" data-i="${i}"><b>${esc(s.label)}</b><span>${esc(s.why)}</span></div>`).join('');
+  const el = bubble(`<div class="co">Suggestions</div><h3>A few ways to make it better:</h3><div class="chips">${chips}</div>`);
+  el.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => proposeReview(sugg[+ch.dataset.i].ops)));
+}
+
+// ── the propose → review → build loop ─────────────────────────────────────────
+function proposeReview(ops) {
+  const review = reviewProposal(spec, ops);
+  const n = narrateProposal(review);
+
+  if (!review.ok) {
+    bubble(`<div class="co">${co}</div><h3>${esc(n.headline)}</h3>
+      <ul class="changes err">${n.bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
+      <div class="prompt">${esc(n.prompt)}</div>`);
+    return;
+  }
+
+  // ghost preview — show the candidate before committing
+  renderPreview(review.preview);
+  previewLabel.innerHTML = 'Preview of this change <span class="pending">— not saved yet</span>';
+
+  const el = bubble(`<div class="co">${co}</div><h3>${esc(n.headline)}</h3>
+    <ul class="changes">${n.bullets.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
+    ${(n.milestones || []).map(m => `<div class="milestone">${esc(m)}</div>`).join('')}
+    <div class="prompt">${esc(n.prompt)}</div>
+    <div class="actions"><div class="btn primary" data-build>Build it</div><div class="btn ghost" data-cancel>Not now</div></div>`);
+
+  el.querySelector('[data-build]').addEventListener('click', () => { commit(ops, el); });
+  el.querySelector('[data-cancel]').addEventListener('click', () => {
+    el.querySelector('.actions').remove();
+    renderPreview(buildPreview(spec));                       // revert the ghost
+    previewLabel.textContent = 'Live preview — what your members see';
+  });
+}
+
+function commit(ops, el) {
+  const review = reviewProposal(spec, ops);
+  if (!review.ok) return;                                    // gate is final
+  spec = review.candidate;                                   // advance the working spec
+  el.querySelector('.actions').remove();
+  renderPreview(buildPreview(spec));
+  previewLabel.textContent = 'Live preview — what your members see';
+  bubble(`<div class="co">${co}</div><div class="sum">Done — it's live in your preview.</div>`);
+
+  if (++buildsSinceCheckpoint >= 3) {
+    buildsSinceCheckpoint = 0;
+    const c = checkpoint(spec);
+    bubble(`<div class="co">${co}</div><h3>${esc(c.headline)}</h3><div class="sum">${esc(c.summary)}</div><div class="prompt">${esc(c.prompt)}</div>`);
+  }
+  offerSuggestions();
+}
+
+// ── free-text (the LLM seam) — honest local intent match until a key is connected ─────────────────
+const INTENTS = [
+  { re: /(level|progress|tier|rank|badge)/i, id: 'add-levels' },
+  { re: /(library|content|resource|lesson|course|media)/i, id: 'add-library' },
+  { re: /(about|story|who we are|mission)/i, id: 'add-about' },
+  { re: /(staff|team|moderator|role|admin)/i, id: 'add-staff' }
+];
+function onSend() {
+  const input = $('#ask'); const text = input.value.trim(); if (!text || !spec) return;
+  input.value = '';
+  bubble(esc(text), 'you');
+  const sugg = suggestNext(spec);
+  const hit = INTENTS.find(i => i.re.test(text));
+  const match = hit && sugg.find(s => s.id === hit.id);
+  if (match) { proposeReview(match.ops); return; }
+  bubble(`<div class="co">${co}</div><div class="sum">Connecting your own AI key lets me build from a description like that. It's not wired up in this preview yet — for now, pick one of the suggestions and I'll build it live.</div>`);
+  offerSuggestions();
+}
+
+$('#send').addEventListener('click', onSend);
+$('#ask').addEventListener('keydown', e => { if (e.key === 'Enter') onSend(); });
+$('#restart').addEventListener('click', showGallery);
+
+showGallery();
+</script>
+</body>
+</html>
