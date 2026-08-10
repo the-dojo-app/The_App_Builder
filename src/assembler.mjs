@@ -4,7 +4,7 @@
 // See docs/ASSEMBLER.md. Covers the runtime config-doc path (theme + modules + notifications +
 // branding + history snapshot) AND the deploy-path firestore.rules generation (via shell/rules-gen).
 
-import { cleanTheme } from './shell/theme-validator.mjs';
+import { cleanTheme, checkContrast } from './shell/theme-validator.mjs';
 import { genRules } from './shell/rules-gen.mjs';
 import { cleanContentConfig } from './modules/content-library.mjs';
 
@@ -30,8 +30,11 @@ export function cleanSpec(spec) {
 
   out.concepts = isObj(s.concepts) ? s.concepts : {};
 
-  // THEME — delegate to the extracted validator (drops bad colours, keeps/uppercases valid).
+  // THEME — delegate to the extracted validator (drops bad colours/values, clamps numbers,
+  // whitelists enums). The contrast floor is a Spec error, not a thrown exception (portable).
   out.theme = cleanTheme(isObj(s.theme) ? s.theme : {});
+  const contrastErr = checkContrast(out.theme);
+  if (contrastErr) errors.push(contrastErr);
 
   out.auth = isObj(s.auth) ? s.auth : {};
   out.dataModels = Array.isArray(s.dataModels) ? s.dataModels : [];
