@@ -1,0 +1,11 @@
+{
+  "name": "appforge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Clone-first, AI-driven app-builder platform (working name; seeded from the Dojo shell).",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "UNLICENSED"
+}

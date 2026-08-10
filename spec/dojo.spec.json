@@ -1,0 +1,107 @@
+{
+  "spec": "0",
+  "app": {
+    "id": "the-dojo",
+    "name": "The Dojo",
+    "tagline": "Companion to The Stabilized Flow State",
+    "branding": { "logoUrl": "", "faviconUrl": "" }
+  },
+  "concepts": {
+    "member":          { "label": "Member",  "plural": "Members" },
+    "progressionUnit": { "label": "Belt",    "plural": "Belts",   "ordered": true },
+    "contentItem":     { "label": "Method",  "plural": "Methods" },
+    "activity":        { "label": "Session", "plural": "Sessions" }
+  },
+  "theme": {
+    "color": {
+      "surface-page": "#0F171D", "surface-sunken": "#171C1C",
+      "text-primary": "#F2F6F5", "text-secondary": "#9AA6A4",
+      "accent": "#109F93", "accent-text": "#6FE3D6"
+    },
+    "colorLight": {
+      "accent": "#0B746B", "surface-flat": "#FBFDFC"
+    }
+  },
+  "auth": {
+    "provider": "firebase",
+    "roles": [
+      { "id": "owner",  "label": "Owner",       "rank": 100, "builtin": true },
+      { "id": "admin",  "label": "Admin",       "rank": 80 },
+      { "id": "coach",  "label": "Coach",       "rank": 40 },
+      { "id": "beta",   "label": "Beta tester", "rank": 20 },
+      { "id": "member", "label": "Member",      "rank": 0, "default": true }
+    ],
+    "signup": { "open": false, "invite": true, "defaultRole": "member" },
+    "grant":  { "granter": "owner", "audit": true, "guardLastOwner": true, "revokeOnDowngrade": true }
+  },
+  "dataModels": [
+    {
+      "id": "sessions", "concept": "activity", "owner": "member", "access": "owner-read",
+      "fields": [
+        { "id": "score",       "type": "number", "min": 0, "max": 100 },
+        { "id": "durationSec", "type": "number" },
+        { "id": "ts",          "type": "timestamp" },
+        { "id": "included",    "type": "bool", "default": true },
+        { "id": "traceUrl",    "type": "image" }
+      ]
+    },
+    {
+      "id": "methods", "concept": "contentItem", "owner": "app", "access": "public",
+      "fields": [
+        { "id": "title",    "type": "text" },
+        { "id": "belt",     "type": "select" },
+        { "id": "body",     "type": "longtext" },
+        { "id": "required", "type": "bool" },
+        { "id": "figures",  "type": "file" }
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "type": "content-library",
+      "config": {
+        "collection": "methods",
+        "itemConcept": "contentItem",
+        "formats": ["image", "video", "audio", "pdf", "article", "external", "interactive"],
+        "taxonomy": [
+          { "id": "belt", "concept": "progressionUnit", "valuesFrom": "module:progression.units", "extra": ["General"], "required": true },
+          { "id": "role", "label": "Type", "values": ["method", "animation", "transition"], "default": "method", "catalogueFilter": "method" },
+          { "id": "path", "label": "Path", "values": ["neurofeedback", "attentional"], "optional": true }
+        ],
+        "gating": { "progressionModule": "progression", "requiredFlag": "required", "referenceFlag": "reference" },
+        "surfaces": {
+          "catalogue":   { "pageId": "library",  "audience": { "who": "members" }, "showAll": true, "groupBy": "belt", "sortBy": "sortOrder" },
+          "gatedReader": { "pageId": "training", "audience": { "who": "members" }, "scopeBy": "belt", "tracksCompletion": true }
+        }
+      }
+    },
+    {
+      "type": "progression",
+      "config": {
+        "unitConcept": "progressionUnit",
+        "units": ["White", "Yellow", "Orange", "Green", "Blue", "Purple", "Brown", "Black"],
+        "badgesPerUnit": 8,
+        "tracks": [
+          { "id": "neurofeedback", "label": "Neurofeedback", "score": { "source": "activity:sessions.score" }, "default": true },
+          { "id": "attentional",   "label": "Attentional",   "score": { "source": "activity:attentionalReviews.composite" } }
+        ],
+        "evidence": { "activityModel": "sessions", "contentModule": "content-library" },
+        "rulesRef": "config/beltRules",
+        "labelsRef": "config/badgeLabels",
+        "retroactive": false,
+        "viz": "orbit",
+        "appMechanics": ["wing-time"]
+      }
+    }
+  ],
+  "pages": [
+    { "id": "library",  "title": "Library",  "audience": { "who": "members" }, "nav": { "section": "main", "icon": "book",  "label": "Library" },  "layout": "single", "blocks": [] },
+    { "id": "training", "title": "Training",  "audience": { "who": "members" }, "nav": { "section": "main", "icon": "target","label": "Training" }, "layout": "single", "blocks": [] }
+  ],
+  "notifications": { "categories": [] },
+  "integrations": {
+    "ai":   { "provider": "anthropic", "keyRef": "secret://ANTHROPIC_KEY" },
+    "muse": { "type": "evidence-source", "moduleRef": "content-library" }
+  },
+  "meta": { "authoredBy": "hand", "note": "reference app #1 (Phase 0 fixture)" }
+}
