@@ -12,6 +12,7 @@ import { FIELD_TYPES, OWNERS, ACCESS } from '../shell/data-model.mjs';
 import { CONTENT_FORMATS } from '../modules/content-library.mjs';
 import { PROGRESSION_VIZ } from '../modules/progression.mjs';
 import { MECHANIC_TYPES } from '../modules/mechanics.mjs';
+import { PROVIDERS, CAPABILITIES, DEFAULT_PROVIDERS } from '../shell/providers.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 
@@ -97,6 +98,11 @@ export function buildCatalog(spec) {
     vizOptions: PROGRESSION_VIZ.slice(),
     modules: MODULE_LIBRARY.map(m => ({ ...m })),
     mechanics: MECHANIC_TYPES.map(t => ({ type: t, summary: MECHANIC_BLURBS[t] || t })),
+    providers: CAPABILITIES.map(cap => ({
+      capability: cap,
+      default: DEFAULT_PROVIDERS[cap],
+      options: PROVIDERS.filter(p => p.capability === cap).map(p => ({ id: p.id, name: p.name, summary: p.summary, byoAccount: p.byoAccount }))
+    })),
     diffFormat: DIFF_GRAMMAR,
     // spec-derived context so proposals reference real things
     concepts: Object.keys(isObj(s.concepts) ? s.concepts : {}),

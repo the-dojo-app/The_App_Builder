@@ -11,6 +11,7 @@ import { cleanDataModels } from './shell/data-model.mjs';
 import { cleanAuth } from './shell/auth.mjs';
 import { cleanContentConfig } from './modules/content-library.mjs';
 import { cleanProgressionConfig } from './modules/progression.mjs';
+import { cleanProviders } from './shell/providers.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const isStr = v => typeof v === 'string' && v.length > 0;
@@ -46,6 +47,7 @@ export function cleanSpec(spec) {
   if (!isStr(out.app.id)) errors.push('app.id is required');
 
   out.concepts = isObj(s.concepts) ? s.concepts : {};
+  out.providers = cleanProviders(s.providers);   // where the app's own infra lives (bounded; defaults to Firebase)
 
   // THEME — delegate to the extracted validator (drops bad colours/values, clamps numbers,
   // whitelists enums). The contrast floor is a Spec error, not a thrown exception (portable).
