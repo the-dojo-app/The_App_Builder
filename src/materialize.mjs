@@ -5,6 +5,7 @@
 // same ops to Firestore/Hosting instead of disk. Same plan, different executor: the seam doing its job.
 //   materialize(spec) → { ok, errors, files: [{ path, content }] }
 import { planSpec, applyPlan } from './plan.mjs';
+import { buildRuntimeModel, renderRuntimeHTML } from './intake/runtime.mjs';
 
 const json = v => JSON.stringify(v, null, 2);
 
@@ -24,6 +25,10 @@ export function materialize(spec) {
     snapshotSpec: () => put('config/appSpec.json', json(cleaned))   // the full cleaned spec = source of truth
   };
   applyPlan(plan, exec);
+
+  // the RUNTIME SHELL — a self-contained, themed, navigable app. `firebase deploy --only hosting`
+  // serves this index.html and you have a visitable app. (Live per-member data layers on later.)
+  put('index.html', renderRuntimeHTML(buildRuntimeModel(cleaned)));
 
   // a small human-facing manifest so a bundle is self-describing
   put('README.txt', [

@@ -1,3 +1,7 @@
 node_modules/
 .DS_Store
 *.log
+
+# local materialized app previews
+preview-build/
+build/

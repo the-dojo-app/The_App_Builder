@@ -18,6 +18,7 @@ test('materialize(dojo) yields the expected deployable artifacts', () => {
   assert.ok(ps.includes('config/pages.json'));
   assert.ok(ps.includes('config/appSpec.json'));
   assert.ok(ps.includes('firestore.rules'));
+  assert.ok(ps.includes('index.html'));                 // the runtime shell — a visitable app
   assert.ok(ps.includes('README.txt'));
   // module configs land as their own docs (colon → path)
   assert.ok(ps.some(p => p.startsWith('config/module/')));

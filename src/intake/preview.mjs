@@ -15,7 +15,7 @@ const plural = (c, key) => (isObj(c[key]) && c[key].plural) || key;
 
 // The dark-app palette roles the frame paints with, and safe fallbacks (the Dojo defaults) so an
 // under-specified theme still renders a coherent frame.
-const PALETTE = {
+export const PALETTE = {
   'surface-page':   '#0F171D',
   'surface-sunken': '#171C1C',
   'surface-raised-1': '#1B2228',
@@ -25,7 +25,7 @@ const PALETTE = {
   'accent-text':    '#6FE3D6'
 };
 
-function resolveColors(theme) {
+export function resolveColors(theme) {
   const c = (isObj(theme) && isObj(theme.color)) ? theme.color : {};
   const out = {};
   for (const role of Object.keys(PALETTE)) out[role] = isStr(c[role]) ? c[role] : PALETTE[role];
