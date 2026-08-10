@@ -104,6 +104,58 @@ export function estimateCost(spec, inputs = {}) {
   };
 }
 
+// ── the BUSINESS view (Will 2026-08-10): "how many members paying how much do I need to cover costs
+// and profit — and how much profit will I make?" Unit economics derived from the cost model, honest
+// about the case where each member costs more than they pay.
+export function estimateBusiness(spec, inputs = {}) {
+  const members = Math.round(clampNum(inputs.members, 1, 10000000, 100));
+  const activityPerMonth = clampNum(inputs.activityPerMonth, 0, 100000, 20);
+  const price = clampNum(inputs.pricePerMonth, 0, 100000, 10);       // what a PAYING member pays/month
+  const percentPaying = clampNum(inputs.percentPaying, 0, 100, 100); // freemium share who actually pay
+
+  const costNow = estimateCost(spec, { members, activityPerMonth }).monthly.total;
+  const costFixed = estimateCost(spec, { members: 1, activityPerMonth }).monthly.total;   // ~member-independent
+  const costPerMember = members > 0 ? Math.max(0, (costNow - costFixed) / members) : 0;
+
+  const payFrac = percentPaying / 100;
+  const revenuePerMember = price * payFrac;                          // avg revenue across ALL members
+  const contribution = revenuePerMember - costPerMember;            // each member's net toward fixed costs
+
+  const payingMembers = Math.round(members * payFrac);
+  const revenue = round(payingMembers * price);
+  const profit = round(revenue - costNow);
+  const margin = revenue > 0 ? round(profit / revenue * 100) : 0;
+
+  const feasible = contribution > 0;
+  const breakEvenMembers = feasible ? Math.ceil(costFixed / contribution) : null;
+  const breakEvenPaying = feasible ? Math.ceil(breakEvenMembers * payFrac) : null;
+
+  return {
+    inputs: { members, activityPerMonth, pricePerMonth: round(price), percentPaying },
+    payingMembers, revenue, cost: round(costNow), profit, margin,
+    perMember: { revenue: round(revenuePerMember), cost: round(costPerMember), contribution: round(contribution) },
+    breakEven: {
+      feasible,
+      members: breakEvenMembers,
+      payingMembers: breakEvenPaying,
+      note: feasible
+        ? `Break even at ~${breakEvenMembers.toLocaleString()} members (~${breakEvenPaying.toLocaleString()} paying).`
+        : 'At this price, each member costs more than they bring in — raise the price or trim costs to reach profit.'
+    }
+  };
+}
+
+export function summarizeBusiness(b) {
+  if (!isObj(b) || !isObj(b.breakEven)) return '';
+  if (!b.breakEven.feasible) {
+    return `At $${b.inputs.pricePerMonth}/member with ${b.inputs.percentPaying}% paying, each member costs more than they pay — raise the price or trim costs before you can profit.`;
+  }
+  const verdict = b.profit >= 0
+    ? `you'd clear about $${b.profit.toLocaleString()}/month profit (${b.margin}% margin)`
+    : `you'd still be about $${Math.abs(b.profit).toLocaleString()}/month short`;
+  return `At $${b.inputs.pricePerMonth}/member and ${b.inputs.percentPaying}% paying, you break even around ${b.breakEven.members.toLocaleString()} members. At ${b.inputs.members.toLocaleString()} members, ${verdict}.`;
+}
+
 export function summarizeCost(est) {
   if (!isObj(est) || !isObj(est.monthly)) return '';
   const m = est.monthly, a = est.assumptions;

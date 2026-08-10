@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { estimateCost, summarizeCost } from '../src/intake/cost.mjs';
+import { estimateCost, summarizeCost, estimateBusiness, summarizeBusiness } from '../src/intake/cost.mjs';
 import { getStarter } from '../src/intake/starters.mjs';
 
 const dojo = JSON.parse(readFileSync(new URL('../spec/dojo.spec.json', import.meta.url)));
@@ -57,3 +57,34 @@ test('summarizeCost is plain-English, has dollars, and no jargon', () => {
   assert.match(txt, /month/);
   assert.doesNotMatch(txt, /Firestore|egress|invocation|dataModel|Spec/);
 });
+
+test('business view: profit = revenue − cost, and it is feasible at a real price', () => {
+  const b = estimateBusiness(dojo, { members: 1000, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 100 });
+  assert.equal(b.payingMembers, 1000);
+  assert.equal(b.revenue, 10000);
+  assert.equal(b.profit, round2(b.revenue - b.cost));
+  assert.equal(b.breakEven.feasible, true);
+  assert.ok(b.breakEven.members >= 1);
+});
+
+test('business view: a $0 price is never feasible (each member is pure cost)', () => {
+  const b = estimateBusiness(dojo, { members: 1000, activityPerMonth: 20, pricePerMonth: 0, percentPaying: 100 });
+  assert.equal(b.breakEven.feasible, false);
+  assert.equal(b.breakEven.members, null);
+});
+
+test('business view: fewer paying members ⇒ less revenue', () => {
+  const full = estimateBusiness(dojo, { members: 1000, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 100 });
+  const half = estimateBusiness(dojo, { members: 1000, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 50 });
+  assert.ok(half.revenue < full.revenue);
+  assert.equal(half.payingMembers, 500);
+});
+
+test('summarizeBusiness is plain-English with dollars and no jargon', () => {
+  const txt = summarizeBusiness(estimateBusiness(dojo, { members: 500, activityPerMonth: 20, pricePerMonth: 8, percentPaying: 80 }));
+  assert.match(txt, /\$/);
+  assert.match(txt, /break even/i);
+  assert.doesNotMatch(txt, /Firestore|contribution|dataModel|Spec/);
+});
+
+function round2(n) { return Math.round(n * 100) / 100; }

@@ -209,6 +209,8 @@
       <div class="ctrls">
         <div class="ctrl"><label>Members <b id="cmv">100</b></label><input type="range" id="cmembers" min="10" max="10000" step="10" value="100"></div>
         <div class="ctrl"><label>Things each does / month <b id="cav">20</b></label><input type="range" id="cactivity" min="1" max="100" step="1" value="20"></div>
+        <div class="ctrl"><label>Price / paying member / mo <b id="cpv">$10</b></label><input type="range" id="cprice" min="0" max="100" step="1" value="10"></div>
+        <div class="ctrl"><label>Share who pay <b id="cppv">100%</b></label><input type="range" id="cpct" min="0" max="100" step="5" value="100"></div>
       </div>
       <div id="costout"></div>
     </div>
@@ -221,7 +223,7 @@ import { reviewProposal } from '../src/intake/intake.mjs';
 import { buildPreview, renderPreviewHTML } from '../src/intake/preview.mjs';
 import { narrateProposal, greeting, checkpoint, suggestNext, decisionRecord, explainRecord } from '../src/intake/narrator.mjs';
 import { themeProposals } from '../src/intake/themes.mjs';
-import { estimateCost, summarizeCost } from '../src/intake/cost.mjs';
+import { estimateCost, summarizeCost, estimateBusiness, summarizeBusiness } from '../src/intake/cost.mjs';
 
 const $ = s => document.querySelector(s);
 const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewLabel'),
@@ -229,7 +231,7 @@ const log = $('#log'), previewFrame = $('#preview'), previewLabel = $('#previewL
       undoBtn = $('#undo'), redoBtn = $('#redo'), logbtn = $('#logbtn'), costbtn = $('#costbtn');
 const co = 'Your co-builder';
 let spec = null, history = [], cursor = -1, pending = false, buildsSinceCheckpoint = 0, lookChosen = false, ledger = [];
-const costInputs = { members: 100, activityPerMonth: 20 };
+const costInputs = { members: 100, activityPerMonth: 20, pricePerMonth: 10, percentPaying: 100 };
 
 const clone = x => structuredClone(x);
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
@@ -301,6 +303,15 @@ function renderCostOut() {
   const est = estimateCost(spec, costInputs), m = est.monthly;
   const lines = m.lines.map(l => `<div class="costline"><span>${esc(l.label)}<div class="cl-note">${esc(l.note)}</div></span><span class="cl-amt">${l.amount ? money(l.amount) : 'free'}</span></div>`).join('');
   const one = est.oneTime.lines.map(l => `<div class="costline"><span>${esc(l.label)}<div class="cl-note">${esc(l.note)}</div></span><span class="cl-amt">${money(l.low)} – ${money(l.high)}</span></div>`).join('');
+  const b = estimateBusiness(spec, costInputs);
+  const profitClass = b.profit >= 0 ? 'r' : 'err';
+  const biz = `
+    <div class="costsec" style="margin-top:22px">Your business</div>
+    <div class="costsum">${esc(summarizeBusiness(b))}</div>
+    <div class="costline"><span>Revenue<div class="cl-note">${b.payingMembers.toLocaleString()} paying × ${money(b.inputs.pricePerMonth)}/mo</div></span><span class="cl-amt">${money(b.revenue)}</span></div>
+    <div class="costline"><span>Running cost<div class="cl-note">from the estimate above</div></span><span class="cl-amt">−${money(b.cost)}</span></div>
+    <div class="costtot"><span>Monthly profit</span><span class="${profitClass}">${money(b.profit)} · ${b.margin}% margin</span></div>
+    <div class="costline" style="border:0"><span>Break-even<div class="cl-note">${esc(b.breakEven.note)}</div></span><span class="cl-amt">${b.breakEven.feasible ? b.breakEven.members.toLocaleString() : '—'}</span></div>`;
   $('#costout').innerHTML = `
     <div class="costsum">${esc(summarizeCost(est))}</div>
     <div class="costsec">Every month, to run it</div>
@@ -309,10 +320,13 @@ function renderCostOut() {
     <div class="costsec" style="margin-top:20px">One-time, to build it</div>
     ${one}
     <div class="costtot"><span>Estimated one-time</span><span class="r">${money(est.oneTime.low)} – ${money(est.oneTime.high)}</span></div>
+    ${biz}
     <div class="costdis">${esc(est.disclaimer)} ${esc(est.assumptions.pricingNote)}</div>`;
 }
 $('#cmembers').addEventListener('input', e => { costInputs.members = +e.target.value; $('#cmv').textContent = (+e.target.value).toLocaleString(); renderCostOut(); });
 $('#cactivity').addEventListener('input', e => { costInputs.activityPerMonth = +e.target.value; $('#cav').textContent = e.target.value; renderCostOut(); });
+$('#cprice').addEventListener('input', e => { costInputs.pricePerMonth = +e.target.value; $('#cpv').textContent = '$' + e.target.value; renderCostOut(); });
+$('#cpct').addEventListener('input', e => { costInputs.percentPaying = +e.target.value; $('#cppv').textContent = e.target.value + '%'; renderCostOut(); });
 costbtn.addEventListener('click', openCosts);
 $('#costclose').addEventListener('click', closeCosts);
 
