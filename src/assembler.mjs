@@ -6,10 +6,24 @@
 
 import { cleanTheme, checkContrast } from './shell/theme-validator.mjs';
 import { genRules } from './shell/rules-gen.mjs';
+import { cleanBlockTree } from './shell/block-tree.mjs';
 import { cleanContentConfig } from './modules/content-library.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const isStr = v => typeof v === 'string' && v.length > 0;
+
+// Block-tree validation options, derived from the (partially-cleaned) spec: the app's storage
+// bucket for media, progression units as per-block audiences, and any stat/chart metrics installed
+// modules expose (none declare them yet — a follow-on with the stat/chart module bindings).
+function blockOpts(out) {
+  const prog = (out.modules || []).find(m => m.type === 'progression');
+  const units = (prog && isObj(prog.config) && Array.isArray(prog.config.units)) ? prog.config.units : [];
+  return {
+    bucket: (isObj(out.app) && isStr(out.app.storageBucket)) ? out.app.storageBucket : null,
+    audiences: units,
+    statMetrics: [], chartTypes: [], icons: []
+  };
+}
 
 // Per-module config validators. Unknown module types are an error (never silently trusted).
 // Modules beyond content-library get a conservative pass-through in this increment (their own
@@ -48,7 +62,14 @@ export function cleanSpec(spec) {
     out.modules.push({ type: m.type, config: cleaner(m.config) });
   });
 
-  out.pages = Array.isArray(s.pages) ? s.pages : [];       // blocks validated by cleanBlockTree (later)
+  // PAGES — validate each page's block tree (unknown types dropped, hrefs de-schemed, media
+  // bucket-scoped, everything bounded). opts come from the spec: storage bucket + progression
+  // units (per-block audiences) + any stat/chart metrics installed modules expose.
+  const bo = blockOpts(out);
+  out.pages = (Array.isArray(s.pages) ? s.pages : []).map(p => {
+    const q = (p && typeof p === 'object') ? p : {};
+    return { ...q, blocks: cleanBlockTree(q.blocks, bo) };
+  });
   out.notifications = isObj(s.notifications) ? s.notifications : {};
   out.integrations = isObj(s.integrations) ? s.integrations : {};
   out.meta = isObj(s.meta) ? s.meta : {};
@@ -70,7 +91,7 @@ export function assemble(cleaned) {
   (s.modules || []).forEach(m => writeConfig('module:' + m.type, m.config));
 
   // pages registry
-  plan.push({ op: 'registerPages', pages: (s.pages || []).map(p => ({ id: p.id, audience: p.audience, nav: p.nav, layout: p.layout })) });
+  plan.push({ op: 'registerPages', pages: (s.pages || []).map(p => ({ id: p.id, audience: p.audience, nav: p.nav, layout: p.layout, blocks: p.blocks || [] })) });
 
   // rules generation (deploy path) — the RBAC interface: dataModels + auth → firestore.rules text
   plan.push({ op: 'genRulesFile', path: 'firestore.rules', rules: genRules(s.dataModels, s.auth) });
