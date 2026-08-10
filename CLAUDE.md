@@ -71,10 +71,16 @@ src/
                       catalog (grounding), diff (bounded Spec-diff), intake (reviewProposal GATE +
                       runIntake model-seam), preview (buildPreview/previewDiff/renderPreviewHTML),
                       narrator (co-builder voice + suggestNext), starters (the gallery)
+  materialize.mjs     PURE: validated Spec → deployable artifact bundle (plan → {path,content} files)
 app/
   builder.html        the DESKTOP builder chrome — imports src/intake/*.mjs directly in-browser
                       (zero build step); runs the whole intake loop client-side. Serve over http.
-test/                 node --test suites (108 across 17 files)
+seams/                the IMPURE boundary (outside src/ so the engine stays pure):
+  llm-propose.mjs     makeLlmPropose — runIntake's propose() backed by a real Anthropic call (BYO key)
+bin/                  runnable CLIs (the only I/O):
+  materialize.mjs     write a Spec's bundle to disk (--starter <id> <out>)
+  intake.mjs          run the live AI intake once on APPGNOSTIC_ANTHROPIC_KEY
+test/                 node --test suites (170 across 24 files)
 ```
 
 ## 5. Current status — Phase 0 (engine feature-complete in isolation)
@@ -102,9 +108,16 @@ turns a validated Spec → a real deployable artifact bundle (`config/*.json` do
 (`node bin/materialize.mjs --starter academy <out>`). Same op set a Firebase executor would push —
 disk today, Firestore/Hosting later.
 
-**The one boundary still left:** a **Firebase-bound executor** (push the same ops to a real project)
-+ `firebase deploy`, and/or the **LLM `propose` seam** (free-text building on the owner's key). Both
-need infra/keys + the owner's go — do NOT provision infra or create keys unprompted.
+**The LLM propose seam is WIRED (2026-08-10).** `seams/llm-propose.mjs` (`makeLlmPropose`) backs
+runIntake's `propose` with a real Anthropic call (Node fetch, zero-dep); pure prompt/parse in
+`src/intake/llm.mjs`. `bin/intake.mjs` runs it once on the owner's key. **Key = a DEDICATED env var
+`APPGNOSTIC_ANTHROPIC_KEY`** (separate from the Dojo — cost/tracking, per the separate-from-dojo
+memory). The model's output is still gated by `cleanSpec`; the whole loop is tested with a mock fetch
+(no key/spend). `runIntake` is now async (awaits propose).
+
+**The one boundary still left:** a **Firebase-bound executor** (push the materialized ops to a real
+project) + `firebase deploy`. Needs a **SEPARATE Firebase project** + the owner's go — never
+`the-dojo-app-b7004`, never provision unprompted.
 
 ## 6. The Dojo as a read-only reference
 

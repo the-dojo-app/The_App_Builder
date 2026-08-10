@@ -72,7 +72,7 @@ test('adding a real module (progression already there → add rbac config no-op)
   assert.ok(r.planDiff.changed.some(c => c.key === 'registerPages') || r.planDiff.added.length >= 0);
 });
 
-test('runIntake: scripted model proposes a bad diff, gets the error, then revises to a good one', () => {
+test('runIntake: scripted model proposes a bad diff, gets the error, then revises to a good one', async () => {
   let calls = 0;
   const propose = ({ errors, round }) => {
     calls++;
@@ -84,21 +84,21 @@ test('runIntake: scripted model proposes a bad diff, gets the error, then revise
     assert.ok(errors.some(e => /unknown type "video-conferencing"/.test(e)), 'model received the gate error');
     return [{ target: 'roles', op: 'add', value: { id: 'shopkeeper', label: 'Shopkeeper', rank: 25 } }];
   };
-  const out = runIntake({ spec: dojo, ask: 'let people sell things', propose, maxRounds: 3 });
+  const out = await runIntake({ spec: dojo, ask: 'let people sell things', propose, maxRounds: 3 });
   assert.equal(out.ok, true);
   assert.equal(out.round, 2);
   assert.equal(calls, 2);
   assert.match(out.review.summary, /Add a role: shopkeeper\./);
 });
 
-test('runIntake: an ask outside the library never fakes it — returns the honest boundary', () => {
+test('runIntake: an ask outside the library never fakes it — returns the honest boundary', async () => {
   const propose = () => [{ target: 'modules', op: 'add', value: { type: 'video-conferencing', config: {} } }];
-  const out = runIntake({ spec: dojo, ask: 'add live video calls', propose, maxRounds: 2 });
+  const out = await runIntake({ spec: dojo, ask: 'add live video calls', propose, maxRounds: 2 });
   assert.equal(out.ok, false);
   assert.equal(out.rounds, 2);
   assert.ok(out.errors.some(e => /unknown type "video-conferencing"/.test(e)));
 });
 
-test('runIntake demands a propose seam', () => {
-  assert.throws(() => runIntake({ spec: dojo }), /propose/);
+test('runIntake demands a propose seam', async () => {
+  await assert.rejects(runIntake({ spec: dojo }), /propose/);
 });

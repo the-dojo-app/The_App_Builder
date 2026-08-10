@@ -89,13 +89,16 @@ export function reviewProposal(currentSpec, ops) {
 // it's supplied by the caller. On a gate failure the model gets the errors and revises; we return
 // the first passing review, or the last failing one after maxRounds (the honest boundary: the model
 // couldn't produce a buildable proposal — the caller surfaces the gap, never fakes it).
-export function runIntake({ spec, ask, propose, catalog, maxRounds = 3 }) {
+// Async so `propose` can be a live LLM call (seams/llm-propose.mjs) — a scripted propose that returns
+// an array still works, since `await <array>` resolves to the array. The model is the only non-pure
+// part; everything it returns is still gated by reviewProposal.
+export async function runIntake({ spec, ask, propose, catalog, maxRounds = 3 }) {
   if (typeof propose !== 'function') throw new TypeError('runIntake needs a propose(context) function');
   const cat = catalog || buildCatalog(spec);
   const summary = summarizeSpec(spec);
   let last = null, errors = [];
   for (let round = 1; round <= maxRounds; round++) {
-    const ops = propose({ spec, summary, catalog: cat, ask, errors, round });
+    const ops = await propose({ spec, summary, catalog: cat, ask, errors, round });
     last = reviewProposal(spec, ops || []);
     if (last.ok) return { ok: true, round, review: last, ops };
     errors = last.errors;
