@@ -11,7 +11,9 @@ import { cleanDataModels } from './shell/data-model.mjs';
 import { cleanAuth } from './shell/auth.mjs';
 import { cleanContentConfig } from './modules/content-library.mjs';
 import { cleanProgressionConfig } from './modules/progression.mjs';
+import { cleanCommerceConfig } from './modules/commerce.mjs';
 import { cleanProviders } from './shell/providers.mjs';
+import { cleanIntegrations } from './shell/connectors.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const isStr = v => typeof v === 'string' && v.length > 0;
@@ -35,6 +37,7 @@ function blockOpts(out) {
 const KNOWN_MODULES = {
   'content-library': cleanContentConfig,
   'progression': cleanProgressionConfig,
+  'commerce': cleanCommerceConfig,
   'rbac': cfg => (isObj(cfg) ? cfg : {})   // rbac config lives in the top-level `auth` block (cleanAuth)
 };
 
@@ -76,8 +79,14 @@ export function cleanSpec(spec) {
     return { ...q, blocks: cleanBlockTree(q.blocks, bo) };
   });
   out.notifications = isObj(s.notifications) ? s.notifications : {};
-  out.integrations = isObj(s.integrations) ? s.integrations : {};
+  out.integrations = cleanIntegrations(s.integrations);   // ai + vetted connectors; keyRefs not literals
   out.meta = isObj(s.meta) ? s.meta : {};
+
+  // Cross-module requirement: commerce cannot operate without a payments connector — surface it as a
+  // clear plan-time prompt ("connect a payments processor"), not a silent half-built shop.
+  if (out.modules.some(m => m.type === 'commerce') && !isObj(out.integrations.payments)) {
+    errors.push('commerce module needs a payments connector (integrations.payments, e.g. stripe)');
+  }
   return { spec: out, errors };
 }
 

@@ -13,6 +13,7 @@ import { CONTENT_FORMATS } from '../modules/content-library.mjs';
 import { PROGRESSION_VIZ } from '../modules/progression.mjs';
 import { MECHANIC_TYPES } from '../modules/mechanics.mjs';
 import { PROVIDERS, CAPABILITIES, DEFAULT_PROVIDERS } from '../shell/providers.mjs';
+import { CONNECTORS, CONNECTOR_CATEGORIES } from '../shell/connectors.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 
@@ -66,6 +67,18 @@ const MODULE_LIBRARY = [
     summary: 'Roles and who-can-do-what. The role SET lives in the top-level auth block, not this module config.',
     needs: 'nothing extra; edit auth.roles / auth.signup / auth.grant via the "roles" and "auth" diff targets.',
     config: '(no module config — see the top-level auth block)'
+  },
+  {
+    type: 'commerce',
+    summary: 'A shop: products, cart, checkout, orders, fulfilment. Reuses the content library for the storefront.',
+    needs: 'a products dataModel + a PAYMENTS connector in integrations.payments (e.g. stripe) — required.',
+    config: {
+      productCollection: 'the dataModel id holding the products',
+      currency: 'a 3-letter code, e.g. USD',
+      pricingModel: 'one-off (v0)',
+      tax: '{ mode: none|flat, flatCents }', shipping: '{ mode: none|flat, flatCents }',
+      surfaces: '{ storefront, checkout, myOrders, admin } — which pages, to whom'
+    }
   }
 ];
 
@@ -102,6 +115,10 @@ export function buildCatalog(spec) {
       capability: cap,
       default: DEFAULT_PROVIDERS[cap],
       options: PROVIDERS.filter(p => p.capability === cap).map(p => ({ id: p.id, name: p.name, summary: p.summary, byoAccount: p.byoAccount }))
+    })),
+    connectors: CONNECTOR_CATEGORIES.map(cat => ({
+      category: cat,
+      options: CONNECTORS.filter(c => c.category === cat).map(c => ({ id: c.id, name: c.name }))
     })),
     diffFormat: DIFF_GRAMMAR,
     // spec-derived context so proposals reference real things

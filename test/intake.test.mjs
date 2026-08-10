@@ -78,10 +78,10 @@ test('runIntake: scripted model proposes a bad diff, gets the error, then revise
     calls++;
     if (round === 1) {
       // grounding is present
-      return [{ target: 'modules', op: 'add', value: { type: 'commerce', config: {} } }]; // unknown → refused
+      return [{ target: 'modules', op: 'add', value: { type: 'video-conferencing', config: {} } }]; // unknown → refused
     }
     // second round: the harness handed us the gate errors; correct the ask
-    assert.ok(errors.some(e => /unknown type "commerce"/.test(e)), 'model received the gate error');
+    assert.ok(errors.some(e => /unknown type "video-conferencing"/.test(e)), 'model received the gate error');
     return [{ target: 'roles', op: 'add', value: { id: 'shopkeeper', label: 'Shopkeeper', rank: 25 } }];
   };
   const out = runIntake({ spec: dojo, ask: 'let people sell things', propose, maxRounds: 3 });

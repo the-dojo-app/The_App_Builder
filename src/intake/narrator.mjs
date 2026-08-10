@@ -190,6 +190,18 @@ const MODULE_LIBRARY_OFFERS = [
     type: 'rbac', name: 'Roles & access', bigBlock: false,
     summary: 'Roles and who-can-do-what — staff, admins, and members with different access.',
     addOps: [{ target: 'modules', op: 'add', value: { type: 'rbac', config: {} } }]
+  },
+  {
+    type: 'commerce', name: 'Shop', bigBlock: false,
+    summary: 'Sell products — cart, checkout, orders. Comes with Stripe for payments (bring your key).',
+    addOps: [
+      { target: 'dataModels', op: 'add', value: { id: 'products', concept: 'product', owner: 'app', access: 'public', fields: [{ id: 'title', type: 'text' }, { id: 'priceCents', type: 'number', min: 0 }, { id: 'currency', type: 'select', values: ['USD'] }, { id: 'sku', type: 'text' }, { id: 'inventory', type: 'number' }, { id: 'kind', type: 'select', values: ['physical', 'digital', 'subscription'] }, { id: 'active', type: 'bool', default: true }] } },
+      { target: 'dataModels', op: 'add', value: { id: 'orders', concept: 'order', owner: 'member', access: 'owner-read', fields: [{ id: 'buyer', type: 'ref', ref: 'members' }, { id: 'status', type: 'select', values: ['pending', 'paid', 'fulfilled', 'refunded', 'canceled'] }, { id: 'totalCents', type: 'number' }, { id: 'currency', type: 'select', values: ['USD'] }, { id: 'placedAt', type: 'timestamp' }, { id: 'items', type: 'list', of: [{ id: 'productRef', type: 'ref', ref: 'products' }, { id: 'qty', type: 'number' }, { id: 'unitPriceCents', type: 'number' }, { id: 'titleSnapshot', type: 'text' }] }] } },
+      { target: 'modules', op: 'add', value: { type: 'commerce', config: { productCollection: 'products', itemConcept: 'product', currency: 'USD', pricingModel: 'one-off', catalogueFrom: 'module:content-library', tax: { mode: 'none' }, shipping: { mode: 'flat', flatCents: 500 }, surfaces: { storefront: { pageId: 'shop', audience: { who: 'members' } }, myOrders: { pageId: 'orders-page', audience: { who: 'members' }, scopeBy: 'buyer' }, admin: { pageId: 'manage-shop', audience: { who: 'staff' } } } } } },
+      { target: 'integrations', op: 'merge', value: { payments: { connector: 'stripe', keyRef: 'secret://STRIPE_KEY' } } },
+      { target: 'pages', op: 'add', value: { id: 'shop', title: 'Shop', audience: { who: 'members' }, nav: { section: 'main', label: 'Shop' }, blocks: [] } },
+      { target: 'pages', op: 'add', value: { id: 'orders-page', title: 'My Orders', audience: { who: 'members' }, nav: { section: 'main', label: 'My Orders' }, blocks: [] } }
+    ]
   }
 ];
 
