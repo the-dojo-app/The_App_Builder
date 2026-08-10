@@ -14,6 +14,7 @@ import { cleanProgressionConfig } from './modules/progression.mjs';
 import { cleanCommerceConfig } from './modules/commerce.mjs';
 import { cleanActivityConfig } from './modules/activity-log.mjs';
 import { cleanMessagingConfig } from './modules/messaging.mjs';
+import { cleanBookingConfig } from './modules/booking.mjs';
 import { cleanProviders } from './shell/providers.mjs';
 import { cleanIntegrations } from './shell/connectors.mjs';
 
@@ -42,6 +43,7 @@ const KNOWN_MODULES = {
   'commerce': cleanCommerceConfig,
   'activity-log': cleanActivityConfig,
   'messaging': cleanMessagingConfig,
+  'booking': cleanBookingConfig,
   'rbac': cfg => (isObj(cfg) ? cfg : {})   // rbac config lives in the top-level `auth` block (cleanAuth)
 };
 
@@ -90,6 +92,11 @@ export function cleanSpec(spec) {
   // clear plan-time prompt ("connect a payments processor"), not a silent half-built shop.
   if (out.modules.some(m => m.type === 'commerce') && !isObj(out.integrations.payments)) {
     errors.push('commerce module needs a payments connector (integrations.payments, e.g. stripe)');
+  }
+  // Paid bookings charge money too — same gate: no payments connector, no paid booking.
+  const booking = out.modules.find(m => m.type === 'booking');
+  if (booking && isObj(booking.config) && booking.config.paid === true && !isObj(out.integrations.payments)) {
+    errors.push('paid bookings need a payments connector (integrations.payments, e.g. stripe)');
   }
   return { spec: out, errors };
 }

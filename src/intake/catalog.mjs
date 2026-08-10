@@ -81,6 +81,18 @@ const MODULE_LIBRARY = [
     }
   },
   {
+    type: 'booking',
+    summary: 'Scheduling — members reserve time: appointments, classes, or a shared resource, with availability and capacity. Optionally paid.',
+    needs: 'a bookables + bookings dataModel; paid bookings need a payments connector; attendance emits to activity-log.',
+    config: {
+      mode: 'appointment | class | resource',
+      slotMinutes: 'slot length', capacityDefault: '1 = appointment; >1 = class',
+      leadTimeHours: 'minimum notice', cancelWindowHours: 'free-cancel window',
+      paid: 'true → requires a payments connector',
+      surfaces: '{ calendar, myBookings, admin } — which pages, to whom'
+    }
+  },
+  {
     type: 'messaging',
     summary: 'Conversations — direct messages between members and/or community channels, with an inbox and staff moderation.',
     needs: 'a threads + messages dataModel; uses rbac for moderation and activity-log/notifications for signals.',

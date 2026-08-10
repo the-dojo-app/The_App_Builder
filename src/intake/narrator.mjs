@@ -201,6 +201,16 @@ const MODULE_LIBRARY_OFFERS = [
     ]
   },
   {
+    type: 'booking', name: 'Booking & scheduling', bigBlock: false,
+    summary: 'Let members reserve time — appointments, classes, or a resource, with availability and capacity.',
+    addOps: [
+      { target: 'dataModels', op: 'add', value: { id: 'bookables', concept: 'bookable', owner: 'app', access: 'public', fields: [{ id: 'title', type: 'text' }, { id: 'kind', type: 'select', values: ['appointment', 'class', 'resource'] }, { id: 'hostRef', type: 'ref', ref: 'members' }, { id: 'durationMin', type: 'number' }, { id: 'capacity', type: 'number' }, { id: 'availability', type: 'list', of: [{ id: 'day', type: 'select', values: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] }, { id: 'startMin', type: 'number' }, { id: 'endMin', type: 'number' }] }, { id: 'active', type: 'bool', default: true }] } },
+      { target: 'dataModels', op: 'add', value: { id: 'bookings', concept: 'booking', owner: 'member', access: 'owner-read', fields: [{ id: 'bookableRef', type: 'ref', ref: 'bookables' }, { id: 'member', type: 'ref', ref: 'members' }, { id: 'startAt', type: 'timestamp' }, { id: 'endAt', type: 'timestamp' }, { id: 'status', type: 'select', values: ['pending', 'confirmed', 'canceled', 'attended', 'no-show'] }] } },
+      { target: 'modules', op: 'add', value: { type: 'booking', config: { bookableCollection: 'bookables', bookingCollection: 'bookings', itemConcept: 'booking', mode: 'appointment', slotMinutes: 30, capacityDefault: 1, cancelWindowHours: 24, paid: false, emitsTo: ['activity-log'], surfaces: { calendar: { pageId: 'book', audience: { who: 'members' } }, myBookings: { pageId: 'my-bookings', audience: { who: 'members' }, scopeBy: 'member' }, admin: { pageId: 'schedule', audience: { who: 'staff' } } } } } },
+      { target: 'pages', op: 'add', value: { id: 'book', title: 'Book', audience: { who: 'members' }, nav: { section: 'main', label: 'Book' }, blocks: [] } }
+    ]
+  },
+  {
     type: 'messaging', name: 'Messaging', bigBlock: false,
     summary: 'Let members message each other and join community channels, with an inbox.',
     addOps: [
