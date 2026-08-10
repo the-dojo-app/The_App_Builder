@@ -21,6 +21,28 @@ test('a valid proposal passes the gate, plans a change, and previews in plain En
   assert.match(r.summary, /Start tracking bookings\./);
 });
 
+test('a passing proposal carries a SHOWABLE preview + animated-diff events', () => {
+  const r = reviewProposal(dojo, [
+    { target: 'pages', op: 'add', value: { id: 'about', title: 'Our Story', audience: { who: 'members' }, nav: { section: 'main', label: 'Our Story' }, blocks: [] } },
+    { target: 'theme', op: 'merge', value: { color: { accent: '#7A5AF8' } } }
+  ]);
+  assert.equal(r.ok, true);
+  // the preview reflects the CANDIDATE app (the new accent is wired in, the page is present)
+  assert.equal(r.preview.colors.accent, '#7A5AF8');
+  assert.ok(r.preview.pages.some(p => p.id === 'about'));
+  // the change events are typed + plain-English (the substrate for animated diffs)
+  const types = r.previewChanges.map(e => e.type);
+  assert.ok(types.includes('page-added') && types.includes('color-changed'));
+  r.previewChanges.forEach(e => assert.ok(e.label && e.label.length));
+});
+
+test('a REFUSED proposal has no preview to show (null / empty)', () => {
+  const r = reviewProposal(dojo, [{ target: 'modules', op: 'add', value: { type: 'leaderboard', config: {} } }]);
+  assert.equal(r.ok, false);
+  assert.equal(r.preview, null);
+  assert.deepEqual(r.previewChanges, []);
+});
+
 test('the gate REFUSES an unknown module — nothing is applied, error is surfaced', () => {
   const r = reviewProposal(dojo, [
     { target: 'modules', op: 'add', value: { type: 'leaderboard', config: {} } }

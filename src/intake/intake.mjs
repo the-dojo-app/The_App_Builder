@@ -13,6 +13,7 @@
 import { planSpec, planDiff } from '../plan.mjs';
 import { applyDiff } from './diff.mjs';
 import { summarizeSpec, buildCatalog } from './catalog.mjs';
+import { buildPreview, previewDiff } from './preview.mjs';
 
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 
@@ -68,13 +69,18 @@ export function describeProposal({ ok, errors, applied, rejected }) {
   return lines.join('\n');
 }
 
-// THE GATE + PREVIEW. Pure. Never writes. Returns everything the owner (or the revise loop) needs.
+// THE GATE + PREVIEW. Pure. Never writes. Returns everything the owner (or the revise loop) needs —
+// including a SHOWABLE preview: `preview` (the resulting app frame) and `previewChanges` (the typed
+// animated-diff events). Both are derived from the CLEANED specs (post-gate), so the owner only ever
+// previews something safe — and only when the gate passed (a refused proposal has no app to show).
 export function reviewProposal(currentSpec, ops) {
   const before = planSpec(currentSpec);
   const { spec: candidate, applied, rejected } = applyDiff(currentSpec, ops);
   const after = planSpec(candidate);                       // cleanSpec runs here — the GATE
   const diff = after.ok ? planDiff(before.plan || [], after.plan) : null;
-  const result = { ok: after.ok, errors: after.errors, applied, rejected, candidate, plan: after.plan, planDiff: diff };
+  const preview = after.ok ? buildPreview(after.spec) : null;
+  const previewChanges = after.ok ? previewDiff(before.spec, after.spec) : [];
+  const result = { ok: after.ok, errors: after.errors, applied, rejected, candidate, plan: after.plan, planDiff: diff, preview, previewChanges };
   result.summary = describeProposal(result);
   return result;
 }

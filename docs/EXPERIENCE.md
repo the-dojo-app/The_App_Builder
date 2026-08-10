@@ -114,10 +114,11 @@ Tagged **[v1]** (first release), **[next]**, **[later]**. Mechanism in *italics*
 
 ## 5. Build order (experience track)
 
-1. **[this session] The preview harness** — `buildPreview` + `previewDiff` + a self-contained HTML
-   renderer, so the ghost-preview and animated-diff features have something real to stand on.
-2. Wire the preview into `reviewProposal` output (return a `preview` + `previewDiff` alongside the
-   plan) so the intake can *show* every proposal.
+1. **[done 2026-08-10] The preview harness** — `buildPreview` + `previewDiff` + a self-contained
+   HTML renderer, so the ghost-preview and animated-diff features have something real to stand on.
+2. **[done 2026-08-10] Wired into `reviewProposal`** — every proposal now returns `preview` (the
+   resulting app frame) + `previewChanges` (typed animated-diff events) alongside the plan, both
+   derived from the cleaned/gated specs. The intake can *show* every proposal, not just describe it.
 3. The narrator copy layer (describeProposal → warm voice) + checkpoints.
 4. The starter-Spec gallery + "two roads" cards.
 5. Time machine (once history is live on real infra).
