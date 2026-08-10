@@ -97,8 +97,14 @@ rules deterministically.
 ]
 ```
 Field types (v0, proposed): `text · longtext · number · bool · date · timestamp · select ·
-image · file · ref(<model>) · geo`. Relations via `ref`. This ceiling is Open Decision #4 in
-`PLATFORM.md`.
+image · file · ref(<model>) · geo · list(<shape>)`. Relations via `ref`. This ceiling is Open
+Decision #4 in `PLATFORM.md`.
+
+**`list(<shape>)` — a bounded array-of-objects field (ruled 2026-08-10).** A repeated sub-record
+whose element shape is itself a bounded list of typed fields, with a max-length cap. Precedented by
+content-library's `figures[]`/`stats[]`; generalized so e.g. an order can hold its line items in one
+document (`MODULE_COMMERCE.md`). Not open-ended: element fields use the same bounded type set (no
+nested `list` in v0), and `cleanDataModel` clamps the element count.
 
 ### `modules` — vetted capabilities, configured
 ```jsonc

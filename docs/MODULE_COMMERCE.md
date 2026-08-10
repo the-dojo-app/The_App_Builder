@@ -3,7 +3,7 @@
 
 # Module: commerce (schema v0, DRAFT)
 
-**Status: PROPOSED / DRAFT, 2026-08-10.** The **"build a shop" module** — products, cart, checkout,
+**Status: DRAFT, key decisions RULED 2026-08-10 (see §10).** The **"build a shop" module** — products, cart, checkout,
 orders, fulfilment — and the **first module that needs an external service** (a payments processor).
 So it's two firsts: a fourth capability beyond content-library / progression / rbac, *and* the
 proving ground for the **connector layer** (Stripe/Shopify/QuickBooth/Zapier). Design-first: no code
@@ -56,6 +56,7 @@ title, description, images[],            // content-library core (reused)
 priceCents (number), currency (select),  // commerce
 sku (text), inventory (number),          // commerce; inventory omitted for digital/subscription
 kind (select: physical|digital|subscription),
+grants (list: { type (select: role|contentScope), value (text) }),  // entitlement bridge — see below
 active (bool), sortOrder (number)
 
 // orders  (owner:"member", access:"owner-read"; staff read via rbac)
@@ -63,15 +64,13 @@ buyer (ref: members), status (select: pending|paid|fulfilled|refunded|canceled),
 subtotalCents, taxCents, shippingCents, totalCents (number), currency (select),
 placedAt (timestamp), paidAt (timestamp),
 connectorRef (text),          // opaque processor id (e.g. the checkout/session id) — NOT a secret
-fulfilment (select: none|pending|shipped|delivered), trackingUrl (text)
-
-// orderItems  (subcollection of an order, or a bounded line-item list)
-productRef (ref: products), qty (number), unitPriceCents (number), titleSnapshot (text)
+fulfilment (select: none|pending|shipped|delivered), trackingUrl (text),
+items (list: { productRef (ref: products), qty (number), unitPriceCents (number), titleSnapshot (text) })
 ```
 
-*Open (schema):* line items are a 1-to-many — a subcollection, or a structured field once APP_SPEC
-supports bounded arrays-of-objects (content-library already has `figures[]`/`stats[]`, so a bounded
-list type is precedented). §10.
+**Line items are a bounded `list(<shape>)` field (ruled 2026-08-10)** — so an order is **one
+document** (no subcollection round-trips), using the new APP_SPEC `list` type precedented by
+content-library's `figures[]`/`stats[]`. `cleanDataModel` caps the element count.
 
 ## 4. Module config (the App Spec `config` block)
 
@@ -81,7 +80,7 @@ list type is precedented). §10.
     "productCollection": "products",
     "itemConcept": "product",                 // "Product" (from spec.concepts)
     "currency": "USD",
-    "pricingModel": "one-off",                // one-off | subscription | mixed
+    "pricingModel": "one-off",                // v0 = one-off only; subscription is a fast-follow (§10)
     "catalogueFrom": "module:content-library",// reuse the storefront/grid + categories
     "payments":   { "connector": "stripe", "keyRef": "secret://STRIPE_KEY" },
     "accounting": { "connector": "quickbooks", "keyRef": "secret://QBO_KEY", "optional": true },
@@ -162,6 +161,16 @@ refund(order, amountCents, ctx) → { ok, connectorRef }
   cost shows up automatically" directive (`app-builder-cost-calculator`). Break-even math then
   reflects processing fees.
 
+## 8a. Purchase → entitlement bridge (defined 2026-08-10)
+
+A **digital or subscription product** can `grants[]` an entitlement that lands when the order is
+`paid`: either a **role** (via rbac — e.g. buying "Pro" grants role `pro`) or a **content scope**
+(via content-library — unlock a category/level of gated content). The bridge is the decoupled-signal
+pattern again: on the verified `paid` webhook, the executor emits a `grantEntitlement` intent that
+**rbac** (role) or **content-library** (scope) fulfils — commerce doesn't reach into either module's
+internals. Ties commerce ↔ rbac ↔ content-library through interfaces, not coupling. *Defined in v0;
+implemented as a fast-follow after one-off checkout works (roles first, being simplest).*
+
 ## 9. Safety & money invariants (do not break)
 
 1. **The pure engine never moves money or holds a secret** — intents only; the connector-bound
@@ -173,16 +182,20 @@ refund(order, amountCents, ctx) → { ok, connectorRef }
 5. **Money in integer minor units.** No floats.
 6. **The AI proposes commerce *config*, never a transaction** — same envelope as every other module.
 
-## 10. Open questions
+## 10. Decisions (ruled 2026-08-10 by Will)
 
-1. **Line items** — subcollection now, or add a bounded `list<object>` field type to APP_SPEC
-   (precedented by `figures[]`)? (Leaning: bounded list type — keeps an order one document.)
-2. **Subscriptions** — model recurring billing in v0, or ship one-off first and add subscription as a
-   fast follow? (Leaning: one-off v0; subscription needs the connector's recurring APIs + a member
-   entitlement check that overlaps progression/rbac.)
-3. **Digital delivery / entitlement** — a digital product grants access to gated content
-   (content-library) or a role (rbac). Define the "purchase → entitlement" bridge, or defer?
-4. **Tax/shipping** — connector-computed vs flat vs none in v0. (Leaning: flat + none in v0;
-   connector-computed when the payments connector supports it.)
-5. **First payments connector to build** — Stripe (best docs, embedded elements) vs Shopify (owners
-   with an existing store)? (Leaning: Stripe first; Zapier alongside for breadth.)
+1. **Line items → a bounded `list(<shape>)` field** (new APP_SPEC type), so an order is one
+   document. *Applied in §3; added to `APP_SPEC.md`.*
+2. **v0 is one-off pricing.** Subscription is a **fast-follow** (needs the connector's recurring APIs
+   + an entitlement check overlapping rbac/progression). *Applied in §4.*
+3. **Define the purchase → entitlement bridge now** (§8a): a digital/subscription product `grants` a
+   **role** (rbac) or a **content scope** (content-library) on `paid`, via a decoupled
+   `grantEntitlement` intent. Implemented as a fast-follow after one-off checkout (roles first).
+4. **v0 tax/shipping = flat + none**; connector-computed tax/shipping arrives when the payments
+   connector supports it. *Applied in §4.*
+5. **First payments connector = Stripe** (best docs + embedded elements → we never touch card data),
+   with **Zapier alongside** for breadth. Shopify follows for owners with an existing store.
+
+**Still genuinely open** (surfaced during build, not blocking sign-off): whether the general
+`CONNECTORS.md` is written now or when a 2nd module needs connectors (§7); the `completions`-style
+store location shared with an activity-log module (adjacent, unspecced).
