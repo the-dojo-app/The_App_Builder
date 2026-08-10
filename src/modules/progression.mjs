@@ -10,6 +10,7 @@ const isStr = v => typeof v === 'string' && v.length > 0;
 const isNum = v => typeof v === 'number' && isFinite(v);
 const SLUG = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
 const VIZ = { orbit: 1, strip: 1, grid: 1, list: 1 };
+export const PROGRESSION_VIZ = Object.keys(VIZ);
 const MAX_UNITS = 40, MAX_TRACKS = 12, MAX_MECHANICS = 40;
 
 function cleanTrack(t) {
