@@ -19,7 +19,16 @@ if (args[0] === '--starter') {
   spec = JSON.parse(readFileSync(args[0], 'utf8')); label = args[0]; outDir = args[1];
 }
 
-const { ok, errors, files } = materialize(spec);
+// Optional: the target project's public web config → the runtime reads LIVE Firestore. Absent → the
+// static demo build. Looked up from APPGNOSTIC_WEB_CONFIG (a path) or ./appgnostic-web-config.json.
+let firebase = null;
+try {
+  const path = process.env.APPGNOSTIC_WEB_CONFIG || new URL('../appgnostic-web-config.json', import.meta.url);
+  firebase = JSON.parse(readFileSync(path, 'utf8'));
+} catch { /* no web config → static demo build */ }
+
+const { ok, errors, files } = materialize(spec, { firebase });
+console.log(firebase ? `Live data ON (project ${firebase.projectId})` : 'Static demo build (no web config found)');
 if (!ok) {
   console.error(`Refused to build ${label} — the spec has errors:`);
   errors.forEach(e => console.error('  - ' + e));

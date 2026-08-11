@@ -6,3 +6,6 @@ node_modules/
 preview-build/
 build/
 live-build/
+
+# project-specific web config (public but per-project)
+*web-config.json

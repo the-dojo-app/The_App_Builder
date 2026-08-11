@@ -9,7 +9,9 @@ import { buildRuntimeModel, renderRuntimeHTML } from './intake/runtime.mjs';
 
 const json = v => JSON.stringify(v, null, 2);
 
-export function materialize(spec) {
+// opts.firebase — the target project's public web config. When present, the runtime reads live
+// Firestore (demo seed off); when absent, the runtime ships the static demo seed.
+export function materialize(spec, opts = {}) {
   const { ok, errors, plan, spec: cleaned } = planSpec(spec);
   if (!ok) return { ok: false, errors, files: [] };
 
@@ -28,7 +30,8 @@ export function materialize(spec) {
 
   // the RUNTIME SHELL — a self-contained, themed, navigable app. `firebase deploy --only hosting`
   // serves this index.html and you have a visitable app. (Live per-member data layers on later.)
-  put('index.html', renderRuntimeHTML(buildRuntimeModel(cleaned, { demo: true })));
+  const firebase = (opts && typeof opts.firebase === 'object') ? opts.firebase : null;
+  put('index.html', renderRuntimeHTML(buildRuntimeModel(cleaned, { demo: !firebase, firebase })));
 
   // Firebase deploy config — hosting serves ONLY the app (index.html); the config/*.json + rules are
   // for Firestore seeding, not the web. So `firebase deploy` from this dir just works.

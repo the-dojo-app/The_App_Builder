@@ -68,8 +68,9 @@ export function buildRuntimeModel(spec, opts = {}) {
         module: m.type, surface: name, kind: kinds[name],
         label: surfaceLabel(m.type, name, cfg, c),
         meta,
-        // the DATA CHANNEL: live records for this surface. Empty → the shell shows a scaffold. A demo
-        // seed fills it now; live Firestore reads fill it the same way once auth is wired (§ deploy).
+        // the DATA CHANNEL: live records for this surface. Empty → the shell shows a scaffold/loading.
+        // A demo seed fills it statically; when `firebase` is set, the shell reads `collection` live.
+        collection: (m.type === 'content-library' && isStr(cfg.collection)) ? cfg.collection : null,
         items: opts.demo ? demoItems(kinds[name], meta) : []
       });
     });
@@ -97,7 +98,8 @@ export function buildRuntimeModel(spec, opts = {}) {
     nav: pages.filter(p => p.section === 'main').map(p => ({ id: p.id, label: p.nav })),
     pages,
     progression,
-    roles: (isObj(s.auth) && Array.isArray(s.auth.roles)) ? s.auth.roles.map(r => r.label || r.id) : []
+    roles: (isObj(s.auth) && Array.isArray(s.auth.roles)) ? s.auth.roles.map(r => r.label || r.id) : [],
+    firebase: isObj(opts.firebase) ? opts.firebase : null   // public client config → live Firestore reads
   };
 }
 
@@ -157,9 +159,10 @@ export function renderRuntimeHTML(model) {
   <nav id="nav"></nav>
   <main id="main"></main>
   <div class="foot">Built with Appgnostic</div>
-<script>
+<script type="module">
 const M = ${modelJson};
 const $ = s => document.querySelector(s);
+let current = null;
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
 if (M.progression && M.progression.units.length) {
@@ -178,7 +181,11 @@ function scaffold(s){
   const chips = (s.meta&&s.meta.taxonomy||[]).map(t=>'<span class="chip">'+esc(t)+'</span>').join('');
   let body='';
   switch(s.kind){
-    case 'catalogue': case 'reader': body = (chips?'<div class="chips">'+chips+'</div>':'')+'<div class="grid">'+ph(6)+'</div>'; break;
+    case 'catalogue': case 'reader':
+      if (s.collection && s.liveError) { body = '<div class="empty">Couldn\\u2019t load content \\u2014 enable Anonymous sign-in in Firebase Auth, then refresh.</div>'; break; }
+      if (s.collection && !s.live) { body = '<div class="empty">Loading\\u2026</div>'; break; }
+      if (s.collection && s.live && !items.length) { body = '<div class="empty">No content yet \\u2014 add a document to the \\u201c'+esc(s.collection)+'\\u201d collection in Firestore.</div>'; break; }
+      body = (chips?'<div class="chips">'+chips+'</div>':'')+'<div class="grid">'+ph(6)+'</div>'; break;
     case 'storefront': body = '<div class="grid">'+ph(6)+'</div><div class="cta">Checkout</div>'; break;
     case 'orders': case 'bookings': body = rows(3); break;
     case 'calendar': body = '<div class="chips">'+['Mon','Tue','Wed','Thu','Fri'].map(d=>'<span class="chip">'+d+'</span>').join('')+'</div><div class="grid">'+ph(4)+'</div>'; break;
@@ -192,6 +199,7 @@ function scaffold(s){
 
 function render(pageId){
   const page = M.pages.find(p=>p.id===pageId) || M.pages[0];
+  current = page && page.id;
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.id===(page&&page.id)));
   if(!page){ $('#main').innerHTML='<div class="empty">No pages yet.</div>'; return; }
   $('#main').innerHTML = page.surfaces.length
@@ -202,6 +210,34 @@ function render(pageId){
 $('#nav').innerHTML = M.nav.map(n=>'<button data-id="'+esc(n.id)+'">'+esc(n.label)+'</button>').join('') || '';
 document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>render(b.dataset.id)));
 render((M.nav[0]||M.pages[0]||{}).id);
+
+// LIVE DATA — read the app's OWN Firestore with its public client config + anonymous sign-in. On any
+// failure every live surface flips to a friendly hint (never a blank/broken screen).
+if (M.firebase && M.firebase.apiKey) (async () => {
+  try {
+    const [{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore, collection, getDocs }] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+    ]);
+    const app = initializeApp(M.firebase);
+    await signInAnonymously(getAuth(app));
+    const db = getFirestore(app), cache = {};
+    for (const page of M.pages) for (const s of page.surfaces) {
+      if (!s.collection) continue;
+      try {
+        if (!cache[s.collection]) { const snap = await getDocs(collection(db, s.collection)); cache[s.collection] = snap.docs.map(d=>d.data()); }
+        const rows = cache[s.collection].filter(x=>x.published!==false).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+        s.items = rows.map(x=>({ title: x.title || '(untitled)', sub: x.level || x.category || '' }));
+        s.live = true;
+      } catch (e) { s.liveError = true; }
+    }
+    render(current);
+  } catch (e) {
+    for (const page of M.pages) for (const s of page.surfaces) if (s.collection) s.liveError = true;
+    render(current);
+  }
+})();
 </script>
 </body></html>`;
 }
