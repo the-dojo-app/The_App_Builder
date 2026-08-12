@@ -131,6 +131,13 @@ export function renderRuntimeHTML(model) {
   .levels{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;align-items:center}
   .levels .cap{color:var(--muted);font-size:12px;margin-right:4px}
   .lvl{background:var(--sunken);border:1px solid var(--accent);color:var(--accent-text);font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px}
+  .lvl.done{background:var(--accent);color:#04110f;border-color:transparent}
+  .lvl.cur{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+  .lvl.lock{opacity:.4}
+  .prog{width:100%;color:var(--muted);font-size:12px;margin-top:9px}
+  .done-btn{background:var(--accent);color:#04110f;font-weight:700;letter-spacing:.02em;border:0;border-radius:11px;padding:12px 20px;cursor:pointer;font:inherit;margin-top:18px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+  .done-btn.undo{background:transparent;color:var(--accent-text);border:1px solid var(--accent)}
+  .done-btn:disabled{opacity:.6;cursor:default}
   nav{display:flex;gap:8px;padding:12px 18px;flex-wrap:wrap;position:sticky;top:0;background:var(--page);border-bottom:1px solid rgba(255,255,255,.06);z-index:2}
   nav button{background:linear-gradient(to bottom,color-mix(in srgb,var(--raised) 95%,#fff 5%),color-mix(in srgb,var(--raised) 85%,#000 15%));color:var(--text);border:1px solid rgba(255,255,255,.08);border-bottom:2px solid rgba(0,0,0,.4);font:inherit;font-size:13px;font-weight:700;letter-spacing:.02em;padding:8px 15px;border-radius:999px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.3)}
   nav button.on{background:var(--accent);color:#04110f;border-color:transparent}
@@ -189,12 +196,48 @@ export function renderRuntimeHTML(model) {
 <script type="module">
 const M = ${modelJson};
 const $ = s => document.querySelector(s);
-let current = null;
+let current = null, LIVE = null;
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
-if (M.progression && M.progression.units.length) {
-  $('#levels').innerHTML = '<span class="cap">'+esc(M.progression.label)+':</span>' +
-    M.progression.units.map(u=>'<span class="lvl">'+esc(u)+'</span>').join('');
+// The levels strip reflects the member's real progress: a level is DONE when all its lessons are
+// complete, the first incomplete level is CURRENT, empty ones are LOCKED. Recomputed on each change.
+function renderLevels(){
+  if (!M.progression || !M.progression.units.length) return;
+  const lessons = (LIVE && LIVE.lessons) || [];
+  const done = LIVE ? LIVE.completed : new Set();
+  let html = '<span class="cap">'+esc(M.progression.label)+':</span>', curSet=false, curLabel='';
+  M.progression.units.forEach(u=>{
+    const inU = lessons.filter(l=>String(l.sub||'').toLowerCase()===String(u).toLowerCase());
+    const complete = inU.length>0 && inU.every(l=>done.has(l.id));
+    let cls='lvl';
+    if(complete) cls+=' done';
+    else if(!curSet && inU.length>0){ cls+=' cur'; curSet=true; curLabel=u; }
+    else if(inU.length===0) cls+=' lock';
+    html += '<span class="'+cls+'">'+esc(u)+(complete?' \\u2713':'')+'</span>';
+  });
+  if (LIVE) {
+    const tot=lessons.length, dn=[...done].filter(id=>lessons.some(l=>l.id===id)).length;
+    const tail = curLabel ? ' \\u00b7 you\\u2019re on '+esc(curLabel) : (tot&&dn===tot ? ' \\u00b7 all done \\ud83c\\udf89' : '');
+    html += '<div class="prog">'+dn+' of '+tot+' complete'+tail+'</div>';
+  }
+  $('#levels').innerHTML = html;
+}
+renderLevels();
+
+async function toggleComplete(item){
+  if (!LIVE || !item.id) return;
+  const mk=$('#mark'); if(mk){ mk.disabled=true; mk.textContent='Saving\\u2026'; }
+  try {
+    if (LIVE.completed.has(item.id)) {
+      const did=LIVE.completedDocs[item.id];
+      if(did) await LIVE.FS.deleteDoc(LIVE.FS.doc(LIVE.db,'completions',did));
+      LIVE.completed.delete(item.id); delete LIVE.completedDocs[item.id];
+    } else {
+      const ref=await LIVE.FS.addDoc(LIVE.FS.collection(LIVE.db,'completions'),{ uid:LIVE.uid, lessonId:item.id, ts:Date.now() });
+      LIVE.completed.add(item.id); LIVE.completedDocs[item.id]=ref.id;
+    }
+    renderLevels(); openDetail(item);
+  } catch(e){ const m=$('#mark'); if(m){ m.disabled=false; m.textContent='Couldn\\u2019t save \\u2014 try again'; } }
 }
 
 function scaffold(s, si){
@@ -244,13 +287,17 @@ function videoEmbed(u){
   return '<video class="vid" controls src="'+esc(u)+'"></video>';
 }
 function openDetail(item){
+  const done = LIVE && item.id && LIVE.completed.has(item.id);
+  const markBtn = (LIVE && item.id) ? '<div><button class="done-btn'+(done?' undo':'')+'" id="mark">'+(done?'\\u2713 Completed \\u2014 mark as not done':'Mark complete')+'</button></div>' : '';
   $('#main').innerHTML = '<div class="surface"><span class="alink" id="back">\\u2190 Back</span>'
     +'<h2 style="margin-top:12px">'+esc(item.title)+'</h2>'
     +(item.sub?'<div class="sub">'+esc(item.sub)+'</div>':'')
     +videoEmbed(item.video)
     +(item.body?'<div class="lbody">'+esc(item.body)+'</div>':'<div class="empty">No details yet.</div>')
+    +markBtn
     +'</div>';
   const b=$('#back'); if(b) b.onclick=()=>render(current);
+  const mk=$('#mark'); if(mk) mk.onclick=()=>toggleComplete(item);
 }
 
 $('#nav').innerHTML = M.nav.map(n=>'<button data-id="'+esc(n.id)+'">'+esc(n.label)+'</button>').join('') || '';
@@ -264,23 +311,32 @@ if (isAdmin) document.body.classList.add('admin-mode');
 // sign-in. On any failure every live surface flips to a friendly hint (never a blank/broken screen).
 if (!isAdmin && M.firebase && M.firebase.apiKey) (async () => {
   try {
-    const [{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore, collection, getDocs }] = await Promise.all([
+    const [appM, authM, FS] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js'),
       import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
     ]);
-    const app = initializeApp(M.firebase);
-    await signInAnonymously(getAuth(app));
-    const db = getFirestore(app), cache = {};
+    const app = appM.initializeApp(M.firebase);
+    const cred = await authM.signInAnonymously(authM.getAuth(app));
+    const uid = cred.user.uid;
+    const db = FS.getFirestore(app), cache = {};
     for (const page of M.pages) for (const s of page.surfaces) {
       if (!s.collection) continue;
       try {
-        if (!cache[s.collection]) { const snap = await getDocs(collection(db, s.collection)); cache[s.collection] = snap.docs.map(d=>d.data()); }
+        if (!cache[s.collection]) { const snap = await FS.getDocs(FS.collection(db, s.collection)); cache[s.collection] = snap.docs.map(d=>({ __id:d.id, ...d.data() })); }
         const rows = cache[s.collection].filter(x=>x.published!==false).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
-        s.items = rows.map(x=>({ title: x.title || '(untitled)', sub: x.level || x.category || '', body: x.body || '', video: x.videoUrl || x.video || '' }));
+        s.items = rows.map(x=>({ id:x.__id, title: x.title || '(untitled)', sub: x.level || x.category || '', body: x.body || '', video: x.videoUrl || x.video || '' }));
         s.live = true;
       } catch (e) { s.liveError = true; }
     }
+    // this member's completions (per-uid; owner-read rules) + the lesson list for progress
+    const completed = new Set(), completedDocs = {};
+    try { const cs = await FS.getDocs(FS.query(FS.collection(db,'completions'), FS.where('uid','==',uid)));
+      cs.docs.forEach(d=>{ const l=d.data().lessonId; if(l){ completed.add(l); completedDocs[l]=d.id; } }); } catch(e){}
+    let lessons = [];
+    for (const page of M.pages) for (const s of page.surfaces) if (s.collection && s.items && s.items.length && !lessons.length) lessons = s.items;
+    LIVE = { db, uid, FS, completed, completedDocs, lessons };
+    renderLevels();
     render(current);
   } catch (e) {
     for (const page of M.pages) for (const s of page.surfaces) if (s.collection) s.liveError = true;
