@@ -9,3 +9,4 @@ live-build/
 
 # project-specific web config (public but per-project)
 *web-config.json
+appgnostic-firestore.rules

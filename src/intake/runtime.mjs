@@ -132,10 +132,13 @@ export function renderRuntimeHTML(model) {
   .levels .cap{color:var(--muted);font-size:12px;margin-right:4px}
   .lvl{background:var(--sunken);border:1px solid var(--accent);color:var(--accent-text);font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px}
   nav{display:flex;gap:8px;padding:12px 18px;flex-wrap:wrap;position:sticky;top:0;background:var(--page);border-bottom:1px solid rgba(255,255,255,.06);z-index:2}
-  nav button{background:var(--raised);color:var(--text);border:1px solid rgba(255,255,255,.08);font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;cursor:pointer}
+  nav button{background:linear-gradient(to bottom,color-mix(in srgb,var(--raised) 95%,#fff 5%),color-mix(in srgb,var(--raised) 85%,#000 15%));color:var(--text);border:1px solid rgba(255,255,255,.08);border-bottom:2px solid rgba(0,0,0,.4);font:inherit;font-size:13px;font-weight:700;letter-spacing:.02em;padding:8px 15px;border-radius:999px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.3)}
   nav button.on{background:var(--accent);color:#04110f;border-color:transparent}
   main{max-width:820px;margin:0 auto;padding:24px 18px 60px}
-  .surface{background:var(--sunken);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:18px;margin-bottom:16px}
+  /* the Dojo .key-card raised recipe — themed via each app's own --raised (gradient + lip + inset) */
+  .surface{background:linear-gradient(to bottom, color-mix(in srgb,var(--raised) 95%,#fff 5%) 0%, var(--raised) 45%, color-mix(in srgb,var(--raised) 82%,#000 18%) 100%);
+    border:1px solid rgba(255,255,255,.09);border-bottom:2px solid rgba(0,0,0,.5);border-radius:14px;padding:18px;margin-bottom:16px;
+    box-shadow:0 1px 0 rgba(255,255,255,.06) inset, 0 3px 7px rgba(0,0,0,.42)}
   h2{font-family:'Work Sans',system-ui,sans-serif;font-size:18px;margin:0 0 4px}
   .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
@@ -156,8 +159,9 @@ export function renderRuntimeHTML(model) {
   #admin h1{font-family:'Work Sans',system-ui,sans-serif;font-size:22px;margin:0 0 12px}
   .field{margin:12px 0}
   .field label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
-  .field input{width:100%;background:var(--sunken);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);padding:12px 13px;font:inherit}
-  .abtn{background:var(--accent);color:#04110f;font-weight:700;border:0;border-radius:11px;padding:12px 18px;cursor:pointer;font:inherit}
+  .field input{width:100%;background:var(--sunken);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:var(--text);padding:12px 13px;font:inherit;box-shadow:inset 0 2px 4px rgba(0,0,0,.35)}
+  .field input:focus{outline:none;border-color:var(--accent);box-shadow:inset 0 2px 4px rgba(0,0,0,.35),0 0 0 2px color-mix(in srgb,var(--accent) 40%,transparent)}
+  .abtn{background:var(--accent);color:#04110f;font-weight:700;letter-spacing:.02em;border:0;border-radius:11px;padding:12px 18px;cursor:pointer;font:inherit;box-shadow:0 2px 6px rgba(0,0,0,.35)}
   .alink{color:var(--accent-text);cursor:pointer;font-size:13px}
   .amsg{color:var(--muted);font-size:13px;margin:10px 0;min-height:18px;line-height:1.5}
   .amsg b{color:var(--accent-text)}
