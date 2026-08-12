@@ -173,6 +173,7 @@ export function renderRuntimeHTML(model) {
   .amsg b{color:var(--accent-text)}
   .litem{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px}
   .litem .del{color:#ff9a8a;cursor:pointer;font-size:12px}
+  .litem .edit{color:var(--accent-text);cursor:pointer;font-size:12px;margin-right:14px}
   code.uid{background:var(--raised);padding:2px 7px;border-radius:6px;font-size:12px;user-select:all}
 </style></head>
 <body>
@@ -315,26 +316,35 @@ async function adminApp(){
     $('#su').onclick = () => go(F.createUserWithEmailAndPassword);
   }
   function authoring(user){
-    A.innerHTML = '<h1>Add '+esc(coll.replace(/s$/,''))+'</h1>'
-      + '<div class="amsg">Signed in as <b>'+esc(user.email)+'</b> \\u00b7 <span class="alink" id="out">sign out</span><br>Your id: <code class="uid">'+esc(user.uid)+'</code> \\u2014 send me this to lock in owner write access.</div>'
+    let editingId = null; const byId = {};
+    const noun = coll.replace(/s$/,'');
+    A.innerHTML = '<h1 id="formTitle">Add '+esc(noun)+'</h1>'
+      + '<div class="amsg">Signed in as <b>'+esc(user.email)+'</b> \\u00b7 <span class="alink" id="out">sign out</span></div>'
       + field('Title','t','text') + field('Level','lv','text')
       + '<div class="field"><label>Body (text)</label><textarea id="bd"></textarea></div>'
       + field('Video URL (YouTube, Vimeo, or .mp4)','vd','text') + field('Order','ord','number')
-      + '<button class="abtn" id="add">Add</button><div class="amsg" id="msg"></div>'
+      + '<button class="abtn" id="add">Add</button> &nbsp; <span class="alink" id="cancel" style="display:none">cancel edit</span><div class="amsg" id="msg"></div>'
       + '<h1 style="margin-top:26px">Current '+esc(coll)+'</h1><div id="list"></div>';
     $('#ord').value = '1'; $('#out').onclick = () => F.signOut(auth);
+    function reset(){ editingId=null; $('#t').value=''; $('#lv').value=''; $('#bd').value=''; $('#vd').value=''; $('#ord').value='1'; $('#add').textContent='Add'; $('#formTitle').textContent='Add '+noun; $('#cancel').style.display='none'; }
+    $('#cancel').onclick = () => { reset(); $('#msg').textContent=''; };
     $('#add').onclick = async () => {
       const t=$('#t').value.trim(); if(!t){ $('#msg').textContent='Add a title.'; return; }
+      const data={ title:t, level:$('#lv').value.trim(), body:$('#bd').value.trim(), videoUrl:$('#vd').value.trim(), sortOrder:Number($('#ord').value)||0, published:true };
       $('#msg').textContent='Saving\\u2026';
-      try { await F.addDoc(F.collection(db,coll),{ title:t, level:$('#lv').value.trim(), body:$('#bd').value.trim(), videoUrl:$('#vd').value.trim(), sortOrder:Number($('#ord').value)||0, published:true, createdAt:Date.now() });
-        $('#t').value=''; $('#lv').value=''; $('#bd').value=''; $('#vd').value=''; $('#msg').innerHTML='Added \\u2713'; list(); }
-      catch(err){ $('#msg').textContent=friendly(err); }
+      try {
+        if(editingId){ await F.updateDoc(F.doc(db,coll,editingId), data); $('#msg').innerHTML='Saved \\u2713'; }
+        else { data.createdAt=Date.now(); await F.addDoc(F.collection(db,coll), data); $('#msg').innerHTML='Added \\u2713'; }
+        reset(); list();
+      } catch(err){ $('#msg').textContent=friendly(err); }
     };
     list();
     async function list(){
       try { const snap=await F.getDocs(F.collection(db,coll)); const ds=snap.docs.slice().sort((a,b)=>((a.data().sortOrder||0)-(b.data().sortOrder||0)));
-        $('#list').innerHTML = ds.length ? ds.map(d=>'<div class="litem"><span>'+esc(d.data().title||'(untitled)')+' <span style="color:var(--muted)">'+esc(d.data().level||'')+'</span></span><span class="del" data-id="'+d.id+'">delete</span></div>').join('') : '<div class="amsg">No '+esc(coll)+' yet.</div>';
-        $('#list').querySelectorAll('.del').forEach(x=>x.onclick=async()=>{ try{ await F.deleteDoc(F.doc(db,coll,x.dataset.id)); list(); }catch(err){ $('#msg').textContent=friendly(err); } });
+        ds.forEach(d=>{ byId[d.id]=d.data(); });
+        $('#list').innerHTML = ds.length ? ds.map(d=>'<div class="litem"><span>'+esc(d.data().title||'(untitled)')+' <span style="color:var(--muted)">'+esc(d.data().level||'')+'</span></span><span><span class="edit" data-id="'+d.id+'">edit</span><span class="del" data-id="'+d.id+'">delete</span></span></div>').join('') : '<div class="amsg">No '+esc(coll)+' yet.</div>';
+        $('#list').querySelectorAll('.del').forEach(x=>x.onclick=async()=>{ try{ await F.deleteDoc(F.doc(db,coll,x.dataset.id)); if(editingId===x.dataset.id) reset(); list(); }catch(err){ $('#msg').textContent=friendly(err); } });
+        $('#list').querySelectorAll('.edit').forEach(x=>x.onclick=()=>{ const d=byId[x.dataset.id]||{}; editingId=x.dataset.id; $('#t').value=d.title||''; $('#lv').value=d.level||''; $('#bd').value=d.body||''; $('#vd').value=d.videoUrl||d.video||''; $('#ord').value=(d.sortOrder!=null?d.sortOrder:0); $('#add').textContent='Save changes'; $('#formTitle').textContent='Edit '+noun; $('#cancel').style.display='inline'; $('#msg').textContent=''; window.scrollTo(0,0); });
       } catch(err){ $('#list').innerHTML='<div class="amsg">'+friendly(err)+'</div>'; }
     }
   }
