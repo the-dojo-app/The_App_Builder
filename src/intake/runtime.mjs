@@ -187,14 +187,17 @@ export function renderRuntimeHTML(model) {
   .acsub{color:var(--muted);font-size:11px;letter-spacing:.13em;font-weight:700}
   .acapp{font-family:'Work Sans',system-ui,sans-serif;font-size:22px;font-weight:700;letter-spacing:-.01em}
   .acrumb{color:var(--muted);font-size:13px;margin:2px 0 18px}
-  .centers{display:flex;flex-direction:column;gap:12px}
-  .center-row{display:flex;align-items:center;gap:14px;cursor:pointer;padding:15px 16px;border-radius:14px;
-    background:linear-gradient(to bottom,color-mix(in srgb,var(--raised) 95%,#fff 5%) 0%,var(--raised) 45%,color-mix(in srgb,var(--raised) 82%,#000 18%) 100%);
-    border:1px solid rgba(255,255,255,.09);border-bottom:2px solid rgba(0,0,0,.5);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 3px 7px rgba(0,0,0,.42);transition:.15s}
-  .center-row:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent) 55%,rgba(255,255,255,.12))}
-  .cglyph{flex:none;width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#10161b;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,255,255,.05)}
-  .ctext{flex:1}.ctext b{display:block;font-family:'Work Sans',system-ui,sans-serif;font-size:16px}.ctext span{color:var(--muted);font-size:13px}
-  .cchev{color:var(--muted);font-size:22px}
+  .centers{display:flex;flex-direction:column;gap:14px}
+  .center-row{display:flex;align-items:flex-start;gap:16px;cursor:pointer;padding:24px 20px;border-radius:8px;
+    background:var(--sunken);border:1px solid rgba(255,255,255,.06);transition:.15s}
+  .center-row:hover{border-color:color-mix(in srgb,var(--accent) 45%,rgba(255,255,255,.08))}
+  .cglyph{flex:none;margin-top:6px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:26px;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent) 45%,transparent))}
+  .ctext{flex:1;min-width:0}
+  .ctext b{display:block;font-family:'Work Sans',system-ui,sans-serif;font-weight:800;font-size:clamp(24px,7vw,34px);text-transform:uppercase;letter-spacing:-.6px;line-height:.95}
+  .cdesc{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;line-height:1.55;margin-top:11px}
+  .cpeek{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+  .cpk{width:30px;height:30px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);display:flex;align-items:center;justify-content:center;font-size:13px}
+  .cchev{color:var(--muted);font-size:26px;align-self:center;flex:none}
 </style></head>
 <body>
   <header>
@@ -383,16 +386,17 @@ async function adminApp(){
       '<div class="actop"><div><div class="acsub">ADMIN</div><div class="acapp">'+esc(M.app.name)+'</div></div><span class="alink" id="out">sign out</span></div>'
       + '<div class="acrumb">Signed in as '+esc(user.email)+'</div>'
       + '<div class="centers">'
-      +  centerRow('content','\\ud83d\\udcda','Content','Add, edit, and organise your '+esc(coll)+'.')
-      +  centerRow('members','\\ud83d\\udc65','Members & roles','Who can sign in, and what they can do.')
-      +  centerRow('design','\\ud83c\\udfa8','Design','Colours, fonts, and the overall look.')
-      +  centerRow('settings','\\u2699\\ufe0f','Settings','App details, sign-in, and connections.')
+      +  centerRow('content','\\ud83d\\udcda','Content center','Add, edit, and organise your '+esc(coll)+' \\u2014 the material members work through.',['\\u2795','\\u270f\\ufe0f','\\ud83c\\udfac','\\ud83d\\uddc2\\ufe0f'])
+      +  centerRow('members','\\ud83d\\udc65','Member center','Everything you do for \\u2014 or to \\u2014 a member: account, access, standing.',['\\ud83d\\udc64','\\ud83d\\udee1\\ufe0f','\\ud83d\\udd0e'])
+      +  centerRow('design','\\ud83c\\udfa8','Design center','Change the look & feel \\u2014 colours, fonts, shapes, the whole design.',['\\ud83c\\udfa8','\\ud83d\\udd24','\\ud83d\\udcd0','\\ud83d\\uddbc\\ufe0f'])
+      +  centerRow('settings','\\u2699\\ufe0f','Settings','App details, sign-in, and the services it connects to.',['\\u2699\\ufe0f','\\ud83d\\udd0c','\\ud83c\\udf10'])
       + '</div>';
     $('#out').onclick = () => F.signOut(auth);
     A.querySelectorAll('.center-row').forEach(r=>r.onclick=()=>openCenter(r.dataset.c, user));
   }
-  function centerRow(id,glyph,name,desc){
-    return '<div class="center-row" data-c="'+id+'"><span class="cglyph">'+glyph+'</span><span class="ctext"><b>'+esc(name)+'</b><span>'+esc(desc)+'</span></span><span class="cchev">\\u203a</span></div>';
+  function centerRow(id,glyph,name,desc,peek){
+    const chips = (peek||[]).map(i=>'<span class="cpk">'+i+'</span>').join('');
+    return '<div class="center-row" data-c="'+id+'"><span class="cglyph">'+glyph+'</span><span class="ctext"><b>'+esc(name)+'</b><span class="cdesc">'+esc(desc)+'</span>'+(chips?'<span class="cpeek">'+chips+'</span>':'')+'</span><span class="cchev">\\u203a</span></div>';
   }
   function openCenter(id, user){
     if(id==='content'){ authoring(user); return; }
