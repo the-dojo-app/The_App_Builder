@@ -187,16 +187,19 @@ export function renderRuntimeHTML(model) {
   .acsub{color:var(--muted);font-size:11px;letter-spacing:.13em;font-weight:700}
   .acapp{font-family:'Work Sans',system-ui,sans-serif;font-size:22px;font-weight:700;letter-spacing:-.01em}
   .acrumb{color:var(--muted);font-size:13px;margin:2px 0 18px}
-  .centers{display:flex;flex-direction:column;gap:14px}
-  .center-row{display:flex;align-items:flex-start;gap:16px;cursor:pointer;padding:24px 20px;border-radius:8px;
-    background:var(--sunken);border:1px solid rgba(255,255,255,.06);transition:.15s}
-  .center-row:hover{border-color:color-mix(in srgb,var(--accent) 45%,rgba(255,255,255,.08))}
+  /* SUNKEN surfaces — the Dojo bar-surface recipe: a darker well recessed into the page with a strong
+     inset shadow + a faint bright bottom lip, so tiles read as carved IN (not floating). */
+  .centers{display:flex;flex-direction:column;gap:14px;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px}
+  .center-row{display:flex;align-items:flex-start;gap:16px;cursor:pointer;padding:24px 20px;border-radius:9px;
+    background:color-mix(in srgb,var(--page) 78%,#000 22%);border:1px solid rgba(0,0,0,.55);
+    box-shadow:inset 0 4px 12px rgba(0,0,0,.6), inset 0 1px 3px rgba(0,0,0,.55), inset 0 -1px 0 rgba(255,255,255,.05);transition:border-color .15s}
+  .center-row:hover{border-color:color-mix(in srgb,var(--accent) 42%,rgba(0,0,0,.55))}
   .cglyph{flex:none;margin-top:6px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:26px;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent) 45%,transparent))}
   .ctext{flex:1;min-width:0}
   .ctext b{display:block;font-family:'Work Sans',system-ui,sans-serif;font-weight:800;font-size:clamp(24px,7vw,34px);text-transform:uppercase;letter-spacing:-.6px;line-height:.95}
   .cdesc{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;line-height:1.55;margin-top:11px}
   .cpeek{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
-  .cpk{width:30px;height:30px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);display:flex;align-items:center;justify-content:center;font-size:13px}
+  .cpk{width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--page) 82%,#000 18%);border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);box-shadow:inset 0 1px 3px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;font-size:13px}
   .cchev{color:var(--muted);font-size:26px;align-self:center;flex:none}
 </style></head>
 <body>
