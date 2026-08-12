@@ -138,6 +138,22 @@ export function renderRuntimeHTML(model) {
   .done-btn{background:var(--accent);color:#04110f;font-weight:700;letter-spacing:.02em;border:0;border-radius:11px;padding:12px 20px;cursor:pointer;font:inherit;margin-top:18px;box-shadow:0 2px 6px rgba(0,0,0,.35)}
   .done-btn.undo{background:transparent;color:var(--accent-text);border:1px solid var(--accent)}
   .done-btn:disabled{opacity:.6;cursor:default}
+  /* member DASHBOARD — the Dojo profile card + AT A GLANCE gauge dials */
+  .profile{display:flex;align-items:center;gap:16px;padding:18px;border-radius:14px;margin-bottom:16px;
+    background:linear-gradient(to bottom,color-mix(in srgb,var(--raised) 95%,#fff 5%) 0%,var(--raised) 45%,color-mix(in srgb,var(--raised) 82%,#000 18%) 100%);
+    border:1px solid rgba(255,255,255,.09);border-bottom:2px solid rgba(0,0,0,.5);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 3px 7px rgba(0,0,0,.42)}
+  .avatar{flex:none;width:64px;height:64px;border-radius:50%;background:var(--sunken);border:2px solid var(--accent);box-shadow:0 0 16px color-mix(in srgb,var(--accent) 45%,transparent);display:flex;align-items:center;justify-content:center;font-family:'Work Sans',sans-serif;font-weight:800;font-size:26px;color:var(--accent-text)}
+  .pinfo{flex:1;min-width:0}.pname{font-family:'Work Sans',sans-serif;font-weight:800;font-size:22px}.prole{color:var(--muted);font-size:13px;margin:2px 0 11px}
+  .ppills{display:flex;flex-wrap:wrap;gap:8px}
+  .ppill{background:color-mix(in srgb,var(--page) 80%,#000 20%);border:1px solid rgba(255,255,255,.06);box-shadow:inset 0 1px 3px rgba(0,0,0,.5);color:var(--text);font-size:12px;font-weight:600;padding:6px 11px;border-radius:8px}
+  .glance{border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:18px;margin-bottom:16px}
+  .glance-h{color:var(--muted);font-size:11px;letter-spacing:.11em;font-weight:700;margin-bottom:16px}
+  .gauges{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .gauge{text-align:center}.gauge svg{width:100%;max-width:160px;overflow:visible}
+  .glabel{color:var(--muted);font-size:12px;font-weight:600;margin-top:2px}
+  .statrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  .statbox{text-align:center;padding:15px;border-radius:11px;background:color-mix(in srgb,var(--page) 80%,#000 20%);box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+  .sbico{font-size:17px}.sbig{font-family:'Work Sans',sans-serif;font-weight:800;font-size:22px;margin-top:5px}.slab{color:var(--muted);font-size:12px;margin-top:2px}
   nav{display:flex;gap:8px;padding:12px 18px;flex-wrap:wrap;position:sticky;top:0;background:var(--page);border-bottom:1px solid rgba(255,255,255,.06);z-index:2}
   nav button{background:linear-gradient(to bottom,color-mix(in srgb,var(--raised) 95%,#fff 5%),color-mix(in srgb,var(--raised) 85%,#000 15%));color:var(--text);border:1px solid rgba(255,255,255,.08);border-bottom:2px solid rgba(0,0,0,.4);font:inherit;font-size:13px;font-weight:700;letter-spacing:.02em;padding:8px 15px;border-radius:999px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.3)}
   nav button.on{background:var(--accent);color:#04110f;border-color:transparent}
@@ -287,7 +303,41 @@ function scaffold(s, si){
   return '<div class="surface"><h2>'+esc(s.label)+'</h2><div class="sub">'+esc(s.module)+'</div>'+body+'</div>';
 }
 
+// member progress, computed from live completions + lesson levels (shared by the dashboard + strip).
+function progress(){
+  const lessons=(LIVE&&LIVE.lessons)||[]; const done=LIVE?LIVE.completed:new Set();
+  const total=lessons.length, dn=[...done].filter(id=>lessons.some(l=>l.id===id)).length;
+  const units=(M.progression&&M.progression.units)||[]; let levelsDone=0, cur='';
+  units.forEach(u=>{ const inU=lessons.filter(l=>String(l.sub||'').toLowerCase()===String(u).toLowerCase()); if(inU.length&&inU.every(l=>done.has(l.id))) levelsDone++; });
+  for(const u of units){ const inU=lessons.filter(l=>String(l.sub||'').toLowerCase()===String(u).toLowerCase()); if(inU.length && !inU.every(l=>done.has(l.id))){ cur=u; break; } }
+  return { total, dn, pct: total?Math.round(dn/total*100):0, cur: cur||(units[0]||'—'), levelsDone, levelsTotal:units.length };
+}
+function gauge(pct,icon,label,big){
+  const R=52,C=Math.PI*R,off=C*(1-Math.max(0,Math.min(100,pct))/100);
+  return '<div class="gauge"><svg viewBox="0 0 120 64">'
+   +'<path d="M8 58 A52 52 0 0 1 112 58" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="6" stroke-linecap="round"/>'
+   +'<path d="M8 58 A52 52 0 0 1 112 58" fill="none" stroke="var(--accent-text)" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'"/>'
+   +'<text x="60" y="52" text-anchor="middle" font-size="24" font-weight="800" fill="var(--text)" style="font-family:Work Sans,sans-serif">'+esc(big)+'</text></svg>'
+   +'<div class="glabel">'+icon+' '+esc(label)+'</div></div>';
+}
+function statbox(icon,val,label){ return '<div class="statbox"><div class="sbico">'+icon+'</div><div class="sbig">'+esc(val)+'</div><div class="slab">'+esc(label)+'</div></div>'; }
+function dashboardHTML(){
+  const p=progress();
+  return '<div class="profile"><div class="avatar">'+esc((M.app.name[0]||'A').toUpperCase())+'</div>'
+    +'<div class="pinfo"><div class="pname">'+esc(M.app.name)+'</div><div class="prole">Your progress'+(LIVE?'':' \\u2014 loading\\u2026')+'</div>'
+    +'<div class="ppills"><span class="ppill">'+esc(p.cur)+'</span><span class="ppill">'+p.dn+'/'+p.total+' lessons</span><span class="ppill">'+p.levelsDone+'/'+p.levelsTotal+' levels</span></div></div></div>'
+    +'<div class="glance"><div class="glance-h">AT A GLANCE</div><div class="gauges">'
+    + gauge(p.pct,'\\ud83d\\udcc8','Complete',p.pct+'%')
+    + gauge(p.levelsTotal?Math.round(p.levelsDone/p.levelsTotal*100):0,'\\ud83c\\udfc5','Levels',p.levelsDone+'/'+p.levelsTotal)
+    + '</div><div class="statrow">'+ statbox('\\u2713',p.dn,'Lessons done') + statbox('\\ud83d\\udcda',p.total,'Total lessons') +'</div></div>';
+}
 function render(pageId){
+  if(pageId==='__home'){
+    current='__home';
+    document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.id==='__home'));
+    $('#main').innerHTML = dashboardHTML();
+    return;
+  }
   const page = M.pages.find(p=>p.id===pageId) || M.pages[0];
   current = page && page.id;
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.id===(page&&page.id)));
@@ -319,9 +369,9 @@ function openDetail(item){
   const mk=$('#mark'); if(mk) mk.onclick=()=>toggleComplete(item);
 }
 
-$('#nav').innerHTML = M.nav.map(n=>'<button data-id="'+esc(n.id)+'">'+esc(n.label)+'</button>').join('') || '';
+$('#nav').innerHTML = '<button data-id="__home">Home</button>' + M.nav.map(n=>'<button data-id="'+esc(n.id)+'">'+esc(n.label)+'</button>').join('');
 document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>render(b.dataset.id)));
-render((M.nav[0]||M.pages[0]||{}).id);
+render('__home');
 
 const isAdmin = new URLSearchParams(location.search).has('admin');
 if (isAdmin) document.body.classList.add('admin-mode');
