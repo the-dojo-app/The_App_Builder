@@ -149,6 +149,21 @@ export function renderRuntimeHTML(model) {
   .cta{background:var(--accent);color:#04110f;font-weight:700;text-align:center;padding:11px;border-radius:11px;margin-top:6px;font-size:14px}
   .empty{color:var(--muted);font-size:13px}
   .foot{color:var(--muted);font-size:11px;text-align:center;padding:20px;opacity:.7}
+  /* admin / authoring (?admin) */
+  body.admin-mode header, body.admin-mode nav, body.admin-mode main, body.admin-mode .foot{display:none}
+  #admin{display:none;max-width:560px;margin:0 auto;padding:36px 20px}
+  body.admin-mode #admin{display:block}
+  #admin h1{font-family:'Work Sans',system-ui,sans-serif;font-size:22px;margin:0 0 12px}
+  .field{margin:12px 0}
+  .field label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+  .field input{width:100%;background:var(--sunken);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);padding:12px 13px;font:inherit}
+  .abtn{background:var(--accent);color:#04110f;font-weight:700;border:0;border-radius:11px;padding:12px 18px;cursor:pointer;font:inherit}
+  .alink{color:var(--accent-text);cursor:pointer;font-size:13px}
+  .amsg{color:var(--muted);font-size:13px;margin:10px 0;min-height:18px;line-height:1.5}
+  .amsg b{color:var(--accent-text)}
+  .litem{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px}
+  .litem .del{color:#ff9a8a;cursor:pointer;font-size:12px}
+  code.uid{background:var(--raised);padding:2px 7px;border-radius:6px;font-size:12px;user-select:all}
 </style></head>
 <body>
   <header>
@@ -158,6 +173,7 @@ export function renderRuntimeHTML(model) {
   </header>
   <nav id="nav"></nav>
   <main id="main"></main>
+  <div id="admin"></div>
   <div class="foot">Built with Appgnostic</div>
 <script type="module">
 const M = ${modelJson};
@@ -211,9 +227,12 @@ $('#nav').innerHTML = M.nav.map(n=>'<button data-id="'+esc(n.id)+'">'+esc(n.labe
 document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>render(b.dataset.id)));
 render((M.nav[0]||M.pages[0]||{}).id);
 
-// LIVE DATA — read the app's OWN Firestore with its public client config + anonymous sign-in. On any
-// failure every live surface flips to a friendly hint (never a blank/broken screen).
-if (M.firebase && M.firebase.apiKey) (async () => {
+const isAdmin = new URLSearchParams(location.search).has('admin');
+if (isAdmin) document.body.classList.add('admin-mode');
+
+// LIVE DATA (member view) — read the app's OWN Firestore with its public client config + anonymous
+// sign-in. On any failure every live surface flips to a friendly hint (never a blank/broken screen).
+if (!isAdmin && M.firebase && M.firebase.apiKey) (async () => {
   try {
     const [{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore, collection, getDocs }] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js'),
@@ -238,6 +257,57 @@ if (M.firebase && M.firebase.apiKey) (async () => {
     render(current);
   }
 })();
+
+// ADMIN / AUTHORING (?admin) — email/password sign-in for the OWNER, then add / list / delete content.
+// Writes are owner-gated by the Firestore rules; the screen shows the signed-in uid to lock in.
+if (isAdmin && M.firebase && M.firebase.apiKey) adminApp();
+async function adminApp(){
+  const A = $('#admin'); A.innerHTML = '<div class="amsg">Loading\\u2026</div>';
+  let auth, db, F;
+  try {
+    const [a,b,c] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
+    ]);
+    const app = a.initializeApp(M.firebase); auth = b.getAuth(app); db = c.getFirestore(app); F = { ...b, ...c };
+  } catch (e) { A.innerHTML = '<div class="amsg">Could not load Firebase.</div>'; return; }
+  const coll = (function(){ for (const p of M.pages) for (const s of p.surfaces) if (s.collection) return s.collection; return 'lessons'; })();
+  const field = (l,id,t) => '<div class="field"><label>'+l+'</label><input id="'+id+'" type="'+t+'"></div>';
+  const friendly = e => { const k=(e&&e.code)||''; return /permission-denied/.test(k)?'Write blocked \\u2014 this account isn\\u2019t the owner yet. Send me your id (below) and I\\u2019ll unlock it.':/email-already-in-use/.test(k)?'That account already exists \\u2014 use Sign in.':/invalid-credential|wrong-password|user-not-found/.test(k)?'Wrong email or password.':/weak-password/.test(k)?'Password too short (min 6).':(e&&e.message)||'Something went wrong.'; };
+  F.onAuthStateChanged(auth, u => (u && !u.isAnonymous) ? authoring(u) : login());
+
+  function login(){
+    A.innerHTML = '<h1>Owner sign-in</h1><div class="amsg">Sign in to manage <b>'+esc(coll)+'</b>. First time? Create the owner account.</div>'
+      + field('Email','em','email') + field('Password','pw','password')
+      + '<button class="abtn" id="si">Sign in</button> &nbsp; <span class="alink" id="su">Create owner account</span><div class="amsg" id="msg"></div>';
+    const go = fn => { const e=$('#em').value.trim(), p=$('#pw').value; $('#msg').textContent='\\u2026'; fn(auth,e,p).catch(err=>$('#msg').textContent=friendly(err)); };
+    $('#si').onclick = () => go(F.signInWithEmailAndPassword);
+    $('#su').onclick = () => go(F.createUserWithEmailAndPassword);
+  }
+  function authoring(user){
+    A.innerHTML = '<h1>Add '+esc(coll.replace(/s$/,''))+'</h1>'
+      + '<div class="amsg">Signed in as <b>'+esc(user.email)+'</b> \\u00b7 <span class="alink" id="out">sign out</span><br>Your id: <code class="uid">'+esc(user.uid)+'</code> \\u2014 send me this to lock in owner write access.</div>'
+      + field('Title','t','text') + field('Level','lv','text') + field('Order','ord','number')
+      + '<button class="abtn" id="add">Add</button><div class="amsg" id="msg"></div>'
+      + '<h1 style="margin-top:26px">Current '+esc(coll)+'</h1><div id="list"></div>';
+    $('#ord').value = '1'; $('#out').onclick = () => F.signOut(auth);
+    $('#add').onclick = async () => {
+      const t=$('#t').value.trim(); if(!t){ $('#msg').textContent='Add a title.'; return; }
+      $('#msg').textContent='Saving\\u2026';
+      try { await F.addDoc(F.collection(db,coll),{ title:t, level:$('#lv').value.trim(), sortOrder:Number($('#ord').value)||0, published:true, createdAt:Date.now() });
+        $('#t').value=''; $('#lv').value=''; $('#msg').innerHTML='Added \\u2713'; list(); }
+      catch(err){ $('#msg').textContent=friendly(err); }
+    };
+    list();
+    async function list(){
+      try { const snap=await F.getDocs(F.collection(db,coll)); const ds=snap.docs.slice().sort((a,b)=>((a.data().sortOrder||0)-(b.data().sortOrder||0)));
+        $('#list').innerHTML = ds.length ? ds.map(d=>'<div class="litem"><span>'+esc(d.data().title||'(untitled)')+' <span style="color:var(--muted)">'+esc(d.data().level||'')+'</span></span><span class="del" data-id="'+d.id+'">delete</span></div>').join('') : '<div class="amsg">No '+esc(coll)+' yet.</div>';
+        $('#list').querySelectorAll('.del').forEach(x=>x.onclick=async()=>{ try{ await F.deleteDoc(F.doc(db,coll,x.dataset.id)); list(); }catch(err){ $('#msg').textContent=friendly(err); } });
+      } catch(err){ $('#list').innerHTML='<div class="amsg">'+friendly(err)+'</div>'; }
+    }
+  }
+}
 </script>
 </body></html>`;
 }
