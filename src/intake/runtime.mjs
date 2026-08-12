@@ -182,6 +182,19 @@ export function renderRuntimeHTML(model) {
   .litem .del{color:#ff9a8a;cursor:pointer;font-size:12px}
   .litem .edit{color:var(--accent-text);cursor:pointer;font-size:12px;margin-right:14px}
   code.uid{background:var(--raised);padding:2px 7px;border-radius:6px;font-size:12px;user-select:all}
+  /* admin CONSOLE — the Dojo drill-down: sticky header, breadcrumb, carved-glyph Center tiles */
+  .actop{position:sticky;top:0;z-index:2;background:var(--page);display:flex;justify-content:space-between;align-items:center;padding:16px 0 12px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:14px}
+  .acsub{color:var(--muted);font-size:11px;letter-spacing:.13em;font-weight:700}
+  .acapp{font-family:'Work Sans',system-ui,sans-serif;font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .acrumb{color:var(--muted);font-size:13px;margin:2px 0 18px}
+  .centers{display:flex;flex-direction:column;gap:12px}
+  .center-row{display:flex;align-items:center;gap:14px;cursor:pointer;padding:15px 16px;border-radius:14px;
+    background:linear-gradient(to bottom,color-mix(in srgb,var(--raised) 95%,#fff 5%) 0%,var(--raised) 45%,color-mix(in srgb,var(--raised) 82%,#000 18%) 100%);
+    border:1px solid rgba(255,255,255,.09);border-bottom:2px solid rgba(0,0,0,.5);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 3px 7px rgba(0,0,0,.42);transition:.15s}
+  .center-row:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent) 55%,rgba(255,255,255,.12))}
+  .cglyph{flex:none;width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#10161b;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),inset 0 -1px 0 rgba(255,255,255,.05)}
+  .ctext{flex:1}.ctext b{display:block;font-family:'Work Sans',system-ui,sans-serif;font-size:16px}.ctext span{color:var(--muted);font-size:13px}
+  .cchev{color:var(--muted);font-size:22px}
 </style></head>
 <body>
   <header>
@@ -361,7 +374,33 @@ async function adminApp(){
   const coll = (function(){ for (const p of M.pages) for (const s of p.surfaces) if (s.collection) return s.collection; return 'lessons'; })();
   const field = (l,id,t) => '<div class="field"><label>'+l+'</label><input id="'+id+'" type="'+t+'"></div>';
   const friendly = e => { const k=(e&&e.code)||''; return /permission-denied/.test(k)?'Write blocked \\u2014 this account isn\\u2019t the owner yet. Send me your id (below) and I\\u2019ll unlock it.':/email-already-in-use/.test(k)?'That account already exists \\u2014 use Sign in.':/invalid-credential|wrong-password|user-not-found/.test(k)?'Wrong email or password.':/weak-password/.test(k)?'Password too short (min 6).':(e&&e.message)||'Something went wrong.'; };
-  F.onAuthStateChanged(auth, u => (u && !u.isAnonymous) ? authoring(u) : login());
+  F.onAuthStateChanged(auth, u => (u && !u.isAnonymous) ? adminHome(u) : login());
+
+  // The admin CONSOLE home — a Dojo-style drill-down of Center tiles. Content drills into authoring();
+  // the others are placeholders that land as each module's admin is built (same tile + IA everywhere).
+  function adminHome(user){
+    A.innerHTML =
+      '<div class="actop"><div><div class="acsub">ADMIN</div><div class="acapp">'+esc(M.app.name)+'</div></div><span class="alink" id="out">sign out</span></div>'
+      + '<div class="acrumb">Signed in as '+esc(user.email)+'</div>'
+      + '<div class="centers">'
+      +  centerRow('content','\\ud83d\\udcda','Content','Add, edit, and organise your '+esc(coll)+'.')
+      +  centerRow('members','\\ud83d\\udc65','Members & roles','Who can sign in, and what they can do.')
+      +  centerRow('design','\\ud83c\\udfa8','Design','Colours, fonts, and the overall look.')
+      +  centerRow('settings','\\u2699\\ufe0f','Settings','App details, sign-in, and connections.')
+      + '</div>';
+    $('#out').onclick = () => F.signOut(auth);
+    A.querySelectorAll('.center-row').forEach(r=>r.onclick=()=>openCenter(r.dataset.c, user));
+  }
+  function centerRow(id,glyph,name,desc){
+    return '<div class="center-row" data-c="'+id+'"><span class="cglyph">'+glyph+'</span><span class="ctext"><b>'+esc(name)+'</b><span>'+esc(desc)+'</span></span><span class="cchev">\\u203a</span></div>';
+  }
+  function openCenter(id, user){
+    if(id==='content'){ authoring(user); return; }
+    const titles={ members:'Members & roles', design:'Design', settings:'Settings' };
+    A.innerHTML = '<div class="acrumb"><span class="alink" id="home">\\u2190 Admin</span> \\u203a '+esc(titles[id]||id)+'</div>'
+      + '<div class="surface"><h2>'+esc(titles[id]||id)+'</h2><div class="empty">This area is next \\u2014 the tile and layout are here; the tools land as we build each module\\u2019s admin.</div></div>';
+    $('#home').onclick = () => adminHome(user);
+  }
 
   function login(){
     A.innerHTML = '<h1>Owner sign-in</h1><div class="amsg">Sign in to manage <b>'+esc(coll)+'</b>. First time? Create the owner account.</div>'
@@ -374,14 +413,14 @@ async function adminApp(){
   function authoring(user){
     let editingId = null; const byId = {};
     const noun = coll.replace(/s$/,'');
-    A.innerHTML = '<h1 id="formTitle">Add '+esc(noun)+'</h1>'
-      + '<div class="amsg">Signed in as <b>'+esc(user.email)+'</b> \\u00b7 <span class="alink" id="out">sign out</span></div>'
+    A.innerHTML = '<div class="acrumb"><span class="alink" id="home">\\u2190 Admin</span> \\u203a Content</div>'
+      + '<h1 id="formTitle">Add '+esc(noun)+'</h1>'
       + field('Title','t','text') + field('Level','lv','text')
       + '<div class="field"><label>Body (text)</label><textarea id="bd"></textarea></div>'
       + field('Video URL (YouTube, Vimeo, or .mp4)','vd','text') + field('Order','ord','number')
       + '<button class="abtn" id="add">Add</button> &nbsp; <span class="alink" id="cancel" style="display:none">cancel edit</span><div class="amsg" id="msg"></div>'
       + '<h1 style="margin-top:26px">Current '+esc(coll)+'</h1><div id="list"></div>';
-    $('#ord').value = '1'; $('#out').onclick = () => F.signOut(auth);
+    $('#ord').value = '1'; $('#home').onclick = () => adminHome(user);
     function reset(){ editingId=null; $('#t').value=''; $('#lv').value=''; $('#bd').value=''; $('#vd').value=''; $('#ord').value='1'; $('#add').textContent='Add'; $('#formTitle').textContent='Add '+noun; $('#cancel').style.display='none'; }
     $('#cancel').onclick = () => { reset(); $('#msg').textContent=''; };
     $('#add').onclick = async () => {
