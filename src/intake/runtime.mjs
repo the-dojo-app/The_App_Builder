@@ -217,6 +217,9 @@ export function renderRuntimeHTML(model) {
   .cpeek{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
   .cpk{width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--page) 82%,#000 18%);border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);box-shadow:inset 0 1px 3px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;font-size:13px}
   .cchev{color:var(--muted);font-size:26px;align-self:center;flex:none}
+  .dcrow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .dcrow label{font-size:14px}
+  .dcrow input[type=color]{width:54px;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:none;cursor:pointer;padding:2px}
 </style></head>
 <body>
   <header>
@@ -233,6 +236,15 @@ const M = ${modelJson};
 const $ = s => document.querySelector(s);
 let current = null, LIVE = null;
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+// LIVE THEME — the runtime ships a baked theme, but if config/appTheme exists in Firestore it wins
+// (like the Dojo's theme.js). The Design center writes it; members + admin read + apply it on load.
+const THEME_VARS = { 'surface-page':'--page','surface-sunken':'--sunken','surface-raised-1':'--raised','text-primary':'--text','text-secondary':'--muted','accent':'--accent','accent-text':'--accent-text' };
+function applyTheme(t){
+  if(!t||typeof t!=='object') return;
+  const c=t.color||{}, S=document.documentElement.style;
+  for(const role in THEME_VARS){ const hex=c[role]; if(typeof hex==='string' && /^#[0-9a-fA-F]{3,8}$/.test(hex)) S.setProperty(THEME_VARS[role], hex); }
+}
 
 // The levels strip reflects the member's real progress: a level is DONE when all its lessons are
 // complete, the first incomplete level is CURRENT, empty ones are LOCKED. Recomputed on each change.
@@ -389,6 +401,7 @@ if (!isAdmin && M.firebase && M.firebase.apiKey) (async () => {
     const cred = await authM.signInAnonymously(authM.getAuth(app));
     const uid = cred.user.uid;
     const db = FS.getFirestore(app), cache = {};
+    try { const td = await FS.getDoc(FS.doc(db,'config','appTheme')); if(td.exists()) applyTheme(td.data()); } catch(e){}
     for (const page of M.pages) for (const s of page.surfaces) {
       if (!s.collection) continue;
       try {
@@ -426,6 +439,7 @@ async function adminApp(){
       import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')
     ]);
     const app = a.initializeApp(M.firebase); auth = b.getAuth(app); db = c.getFirestore(app); F = { ...b, ...c };
+    try { const td = await F.getDoc(F.doc(db,'config','appTheme')); if(td.exists()) applyTheme(td.data()); } catch(e){}
   } catch (e) { A.innerHTML = '<div class="amsg">Could not load Firebase.</div>'; return; }
   const coll = (function(){ for (const p of M.pages) for (const s of p.surfaces) if (s.collection) return s.collection; return 'lessons'; })();
   const field = (l,id,t) => '<div class="field"><label>'+l+'</label><input id="'+id+'" type="'+t+'"></div>';
@@ -453,10 +467,37 @@ async function adminApp(){
   }
   function openCenter(id, user){
     if(id==='content'){ authoring(user); return; }
-    const titles={ members:'Members & roles', design:'Design', settings:'Settings' };
+    if(id==='design'){ designCenter(user); return; }
+    const titles={ members:'Member center', settings:'Settings' };
     A.innerHTML = '<div class="acrumb"><span class="alink" id="home">\\u2190 Admin</span> \\u203a '+esc(titles[id]||id)+'</div>'
       + '<div class="surface"><h2>'+esc(titles[id]||id)+'</h2><div class="empty">This area is next \\u2014 the tile and layout are here; the tools land as we build each module\\u2019s admin.</div></div>';
     $('#home').onclick = () => adminHome(user);
+  }
+
+  // DESIGN CENTER — edit the app's colour roles; changes apply LIVE (to :root) and save to
+  // config/appTheme (owner-gated), so every member sees the new look. A one-tap Dojo preset.
+  const DC_ROLES = [['surface-page','Page background'],['surface-sunken','Sunken / recessed'],['surface-raised-1','Card / raised'],['text-primary','Text'],['text-secondary','Muted text'],['accent','Accent'],['accent-text','Accent text']];
+  const DOJO_LOOK = { 'surface-page':'#0F171D','surface-sunken':'#0F171D','surface-raised-1':'#0F171D','text-primary':'#F2F6F5','text-secondary':'#9AA6A4','accent':'#109F93','accent-text':'#6FE3D6' };
+  async function designCenter(user){
+    A.innerHTML = '<div class="acrumb"><span class="alink" id="home">\\u2190 Admin</span> \\u203a Design center</div>'
+      + '<h1>Design center</h1><div class="amsg">Pick colours \\u2014 changes preview live, and Save applies them to your whole app.</div>'
+      + '<div id="dcfields"></div>'
+      + '<div style="margin-top:18px"><button class="abtn" id="dcsave">Save design</button> &nbsp; <span class="alink" id="dcdojo">Use the Dojo look</span></div>'
+      + '<div class="amsg" id="dcmsg"></div>';
+    $('#home').onclick = () => adminHome(user);
+    let cur = {}; try { const td = await F.getDoc(F.doc(db,'config','appTheme')); if(td.exists() && td.data().color) cur = td.data().color; } catch(e){}
+    const baked = M.colors || {};
+    const val = r => cur[r] || baked[r] || '#000000';
+    $('#dcfields').innerHTML = DC_ROLES.map(([r,l])=>'<div class="dcrow"><label>'+esc(l)+'</label><input type="color" data-role="'+r+'" value="'+val(r)+'"></div>').join('');
+    const applyOne = inp => document.documentElement.style.setProperty(THEME_VARS[inp.dataset.role], inp.value);
+    A.querySelectorAll('#dcfields input').forEach(inp=>inp.oninput=()=>applyOne(inp));
+    $('#dcdojo').onclick = () => { A.querySelectorAll('#dcfields input').forEach(inp=>{ inp.value=DOJO_LOOK[inp.dataset.role]; applyOne(inp); }); $('#dcmsg').textContent='Dojo look previewed \\u2014 hit Save design to keep it.'; };
+    $('#dcsave').onclick = async () => {
+      const color={}; A.querySelectorAll('#dcfields input').forEach(inp=>color[inp.dataset.role]=inp.value);
+      $('#dcmsg').textContent='Saving\\u2026';
+      try { await F.setDoc(F.doc(db,'config','appTheme'), { color }, { merge:true }); $('#dcmsg').innerHTML='Saved \\u2713 \\u2014 your whole app now uses this look.'; }
+      catch(err){ $('#dcmsg').textContent=friendly(err); }
+    };
   }
 
   function login(){
