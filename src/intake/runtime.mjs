@@ -146,6 +146,12 @@ export function renderRuntimeHTML(model) {
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
   .cardph{background:var(--raised);border:1px solid rgba(255,255,255,.05);border-radius:12px;height:96px;display:flex;align-items:flex-end;padding:10px}
   .cardph span{color:var(--muted);font-size:11px}
+  .cardph.lesson{cursor:pointer;transition:.15s}
+  .cardph.lesson:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .lbody{color:var(--text);font-size:15px;line-height:1.75;margin-top:14px;white-space:pre-wrap}
+  .vid{display:block;width:100%;aspect-ratio:16/9;margin:14px 0;border-radius:12px;overflow:hidden;background:#000}
+  .vid iframe,.vid video{width:100%;height:100%;border:0}
+  .field textarea{width:100%;min-height:100px;background:var(--sunken);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:var(--text);padding:12px 13px;font:inherit;box-shadow:inset 0 2px 4px rgba(0,0,0,.35);resize:vertical}
   .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06)}
   .dot{width:34px;height:34px;border-radius:50%;background:var(--raised);flex:none}
   .row .ln{flex:1}.row .ln b{display:block;font-size:14px}.row .ln span{color:var(--muted);font-size:12px}
@@ -190,11 +196,12 @@ if (M.progression && M.progression.units.length) {
     M.progression.units.map(u=>'<span class="lvl">'+esc(u)+'</span>').join('');
 }
 
-function scaffold(s){
+function scaffold(s, si){
   const items = Array.isArray(s.items) ? s.items : [];
+  const clickable = (s.kind==='catalogue' || s.kind==='reader');
   const ph = n => items.length
-    ? items.map(it=>'<div class="cardph"><span>'+esc(it.title)+(it.sub?' · '+esc(it.sub):'')+'</span></div>').join('')
-    : Array.from({length:n}).map(()=>'<div class="cardph"><span>…</span></div>').join('');
+    ? items.map((it,i)=>'<div class="cardph'+(clickable?' lesson':'')+'"'+(clickable?' data-si="'+si+'" data-ii="'+i+'"':'')+'><span>'+esc(it.title)+(it.sub?' \\u00b7 '+esc(it.sub):'')+'</span></div>').join('')
+    : Array.from({length:n}).map(()=>'<div class="cardph"><span>\\u2026</span></div>').join('');
   const rows = n => items.length
     ? items.map(it=>'<div class="row"><div class="dot"></div><div class="ln"><b>'+esc(it.title)+'</b><span>'+esc(it.sub||'')+'</span></div></div>').join('')
     : Array.from({length:n}).map(()=>'<div class="row"><div class="dot"></div><div class="ln"><b>—</b><span>…</span></div></div>').join('');
@@ -223,8 +230,26 @@ function render(pageId){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.id===(page&&page.id)));
   if(!page){ $('#main').innerHTML='<div class="empty">No pages yet.</div>'; return; }
   $('#main').innerHTML = page.surfaces.length
-    ? page.surfaces.map(scaffold).join('')
+    ? page.surfaces.map((s,si)=>scaffold(s,si)).join('')
     : '<div class="surface"><h2>'+esc(page.title)+'</h2><div class="empty">This page is ready for content.</div></div>';
+  $('#main').querySelectorAll('.lesson').forEach(el=>el.onclick=()=>{ const s=page.surfaces[+el.dataset.si]; if(s&&s.items&&s.items[+el.dataset.ii]) openDetail(s.items[+el.dataset.ii]); });
+}
+function videoEmbed(u){
+  if(!u) return '';
+  const yt=String(u).match(/(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([\\w-]+)/);
+  if(yt) return '<div class="vid"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" allowfullscreen></iframe></div>';
+  const vm=String(u).match(/vimeo\\.com\\/(\\d+)/);
+  if(vm) return '<div class="vid"><iframe src="https://player.vimeo.com/video/'+vm[1]+'" allowfullscreen></iframe></div>';
+  return '<video class="vid" controls src="'+esc(u)+'"></video>';
+}
+function openDetail(item){
+  $('#main').innerHTML = '<div class="surface"><span class="alink" id="back">\\u2190 Back</span>'
+    +'<h2 style="margin-top:12px">'+esc(item.title)+'</h2>'
+    +(item.sub?'<div class="sub">'+esc(item.sub)+'</div>':'')
+    +videoEmbed(item.video)
+    +(item.body?'<div class="lbody">'+esc(item.body)+'</div>':'<div class="empty">No details yet.</div>')
+    +'</div>';
+  const b=$('#back'); if(b) b.onclick=()=>render(current);
 }
 
 $('#nav').innerHTML = M.nav.map(n=>'<button data-id="'+esc(n.id)+'">'+esc(n.label)+'</button>').join('') || '';
@@ -251,7 +276,7 @@ if (!isAdmin && M.firebase && M.firebase.apiKey) (async () => {
       try {
         if (!cache[s.collection]) { const snap = await getDocs(collection(db, s.collection)); cache[s.collection] = snap.docs.map(d=>d.data()); }
         const rows = cache[s.collection].filter(x=>x.published!==false).sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
-        s.items = rows.map(x=>({ title: x.title || '(untitled)', sub: x.level || x.category || '' }));
+        s.items = rows.map(x=>({ title: x.title || '(untitled)', sub: x.level || x.category || '', body: x.body || '', video: x.videoUrl || x.video || '' }));
         s.live = true;
       } catch (e) { s.liveError = true; }
     }
@@ -292,15 +317,17 @@ async function adminApp(){
   function authoring(user){
     A.innerHTML = '<h1>Add '+esc(coll.replace(/s$/,''))+'</h1>'
       + '<div class="amsg">Signed in as <b>'+esc(user.email)+'</b> \\u00b7 <span class="alink" id="out">sign out</span><br>Your id: <code class="uid">'+esc(user.uid)+'</code> \\u2014 send me this to lock in owner write access.</div>'
-      + field('Title','t','text') + field('Level','lv','text') + field('Order','ord','number')
+      + field('Title','t','text') + field('Level','lv','text')
+      + '<div class="field"><label>Body (text)</label><textarea id="bd"></textarea></div>'
+      + field('Video URL (YouTube, Vimeo, or .mp4)','vd','text') + field('Order','ord','number')
       + '<button class="abtn" id="add">Add</button><div class="amsg" id="msg"></div>'
       + '<h1 style="margin-top:26px">Current '+esc(coll)+'</h1><div id="list"></div>';
     $('#ord').value = '1'; $('#out').onclick = () => F.signOut(auth);
     $('#add').onclick = async () => {
       const t=$('#t').value.trim(); if(!t){ $('#msg').textContent='Add a title.'; return; }
       $('#msg').textContent='Saving\\u2026';
-      try { await F.addDoc(F.collection(db,coll),{ title:t, level:$('#lv').value.trim(), sortOrder:Number($('#ord').value)||0, published:true, createdAt:Date.now() });
-        $('#t').value=''; $('#lv').value=''; $('#msg').innerHTML='Added \\u2713'; list(); }
+      try { await F.addDoc(F.collection(db,coll),{ title:t, level:$('#lv').value.trim(), body:$('#bd').value.trim(), videoUrl:$('#vd').value.trim(), sortOrder:Number($('#ord').value)||0, published:true, createdAt:Date.now() });
+        $('#t').value=''; $('#lv').value=''; $('#bd').value=''; $('#vd').value=''; $('#msg').innerHTML='Added \\u2713'; list(); }
       catch(err){ $('#msg').textContent=friendly(err); }
     };
     list();
